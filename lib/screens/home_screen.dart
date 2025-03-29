@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'encrypt_decrypt_message_screen.dart';
+import 'encrypt_decrypt_image_screen.dart';
+import 'file_sender_screen.dart';
+import 'secure_chat_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   @override
@@ -13,25 +17,37 @@ class HomeScreen extends StatelessWidget {
           children: <Widget>[
             ElevatedButton(
               onPressed: () {
-                // Navigate to Encrypt/Decrypt Messages Screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => EncryptDecryptMessageScreen()),
+                );
               },
               child: Text('Encrypt/Decrypt Messages'),
             ),
             ElevatedButton(
               onPressed: () {
-                // Navigate to Encrypt/Decrypt Images Screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => EncryptDecryptImageScreen()),
+                );
               },
               child: Text('Encrypt/Decrypt Images'),
             ),
             ElevatedButton(
               onPressed: () {
-                // Navigate to File Sender Screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => FileSenderScreen()),
+                );
               },
               child: Text('File Sender'),
             ),
             ElevatedButton(
               onPressed: () {
-                // Navigate to Secure Chat Screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SecureChatScreen()),
+                );
               },
               child: Text('Secure Chat'),
             ),
