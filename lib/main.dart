@@ -46,34 +46,11 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'SCC - Secure - Chat - Crypt',
       theme: _isDarkMode ? ThemeData.dark() : ThemeData.light(),
-      routes: appRoutes,
-      initialRoute: '/',
-      onGenerateRoute: (settings) {
-        final args = settings.arguments as Map<String, dynamic>? ?? {};
-        print("Navigating to ${settings.name} with args: $args");
-        return MaterialPageRoute(
-          builder: (context) {
-            switch (settings.name) {
-              case '/':
-                return HomeScreen(
-                  isDarkMode: args['isDarkMode'] ?? _isDarkMode,
-                  toggleTheme: args['toggleTheme'] ?? _toggleTheme,
-                );
-              case '/settings':
-                return SettingsScreen(
-                  isDarkMode: args['isDarkMode'] ?? _isDarkMode,
-                  toggleTheme: args['toggleTheme'] ?? _toggleTheme,
-                );
-              default:
-                return Scaffold(
-                  body: Center(
-                    child: Text('No route defined for ${settings.name}'),
-                  ),
-                );
-            }
-          },
-        );
+      routes: {
+        '/': (context) => HomeScreen(isDarkMode: _isDarkMode, toggleTheme: _toggleTheme),
+        '/settings': (context) => SettingsScreen(isDarkMode: _isDarkMode, toggleTheme: _toggleTheme),
       },
+      initialRoute: '/',
     );
   }
 }

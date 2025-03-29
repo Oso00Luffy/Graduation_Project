@@ -25,10 +25,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: Switch(
               value: widget.isDarkMode,
               onChanged: (value) {
-                setState(() {
-                  widget.toggleTheme(value);
-                  print("Dark Mode switched: $value");
-                });
+                widget.toggleTheme(value);
+                print("Dark Mode switched: $value");
               },
             ),
           ),
