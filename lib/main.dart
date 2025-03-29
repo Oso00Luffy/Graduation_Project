@@ -27,6 +27,7 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _isDarkMode = (prefs.getBool('isDarkMode') ?? false);
     });
+    print("Theme loaded: Dark Mode = $_isDarkMode");
   }
 
   _toggleTheme(bool value) {
@@ -35,11 +36,13 @@ class _MyAppState extends State<MyApp> {
       SharedPreferences.getInstance().then((prefs) {
         prefs.setBool('isDarkMode', value);
       });
+      print("Theme toggled: Dark Mode = $_isDarkMode");
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    print("Building MaterialApp with Dark Mode = $_isDarkMode");
     return MaterialApp(
       title: 'SCC - Secure - Chat - Crypt',
       theme: _isDarkMode ? ThemeData.dark() : ThemeData.light(),
@@ -47,6 +50,7 @@ class _MyAppState extends State<MyApp> {
       initialRoute: '/',
       onGenerateRoute: (settings) {
         final args = settings.arguments as Map<String, dynamic>? ?? {};
+        print("Navigating to ${settings.name} with args: $args");
         return MaterialPageRoute(
           builder: (context) {
             switch (settings.name) {

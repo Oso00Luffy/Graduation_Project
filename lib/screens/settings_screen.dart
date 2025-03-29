@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
   final bool isDarkMode;
@@ -14,6 +13,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
+    print("Building SettingsScreen with Dark Mode = ${widget.isDarkMode}");
     return Scaffold(
       appBar: AppBar(
         title: Text('Settings'),
@@ -27,6 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: (value) {
                 setState(() {
                   widget.toggleTheme(value);
+                  print("Dark Mode switched: $value");
                 });
               },
             ),

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'encrypt_decrypt_message_screen.dart';
 import 'encrypt_decrypt_image_screen.dart';
-import 'file_sender_screen.dart';
-import 'secure_chat_screen.dart';
-import 'settings_screen.dart';  // Import SettingsScreen
+// Import SettingsScreen
 
 class HomeScreen extends StatefulWidget {
   final bool isDarkMode;

@@ -8,10 +8,11 @@ import 'screens/settings_screen.dart';
 
 final Map<String, WidgetBuilder> appRoutes = {
   '/': (context) {
-    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>? ?? {};
+    print("HomeScreen args: $args");
     return HomeScreen(
-      isDarkMode: args?['isDarkMode'] ?? false,
-      toggleTheme: args?['toggleTheme'] ?? (bool value) {},
+      isDarkMode: args['isDarkMode'] ?? false,
+      toggleTheme: args['toggleTheme'] ?? (bool value) {},
     );
   },
   '/encrypt-decrypt-message': (context) => EncryptDecryptMessageScreen(),
@@ -19,10 +20,11 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/file-sender': (context) => FileSenderScreen(),
   '/secure-chat': (context) => SecureChatScreen(),
   '/settings': (context) {
-    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>? ?? {};
+    print("SettingsScreen args: $args");
     return SettingsScreen(
-      isDarkMode: args['isDarkMode'],
-      toggleTheme: args['toggleTheme'],
+      isDarkMode: args['isDarkMode'] ?? false,
+      toggleTheme: args['toggleTheme'] ?? (bool value) {},
     );
   },
 };
