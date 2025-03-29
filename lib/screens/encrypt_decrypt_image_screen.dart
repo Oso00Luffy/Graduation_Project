@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import '../services/encryption_service.dart';
 import '../widgets/custom_button.dart';
+import '../widgets/show_more_text.dart';
 
 class EncryptDecryptImageScreen extends StatefulWidget {
   @override
@@ -16,34 +17,56 @@ class _EncryptDecryptImageScreenState extends State<EncryptDecryptImageScreen> {
   final ImagePicker _picker = ImagePicker();
   String _result = '';
   Uint8List? _imageBytes;
+  String _errorMessage = '';
 
   Future<void> _pickImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
+    try {
+      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        setState(() {
+          _image = pickedFile;
+          _imageBytes = null; // Reset image bytes
+          _errorMessage = '';
+        });
+      }
+    } catch (e) {
       setState(() {
-        _image = pickedFile;
-        _imageBytes = null; // Reset image bytes
+        _errorMessage = 'Failed to pick image: ${e.toString()}';
       });
     }
   }
 
   void _encryptImage() async {
-    if (_image != null) {
-      final bytes = await _image!.readAsBytes();
-      final base64String = base64Encode(bytes);
-      final encrypted = _encryptionService.encrypt(base64String);
+    try {
+      if (_image != null) {
+        final bytes = await _image!.readAsBytes();
+        final base64String = base64Encode(bytes);
+        final encrypted = _encryptionService.encrypt(base64String);
+        setState(() {
+          _result = encrypted;
+          _errorMessage = '';
+        });
+      }
+    } catch (e) {
       setState(() {
-        _result = encrypted;
+        _errorMessage = 'Encryption failed: ${e.toString()}';
       });
     }
   }
 
   void _decryptImage() {
-    if (_result.isNotEmpty) {
-      final decrypted = _encryptionService.decrypt(_result);
-      final bytes = base64Decode(decrypted);
+    try {
+      if (_result.isNotEmpty) {
+        final decrypted = _encryptionService.decrypt(_result);
+        final bytes = base64Decode(decrypted);
+        setState(() {
+          _imageBytes = bytes;
+          _errorMessage = '';
+        });
+      }
+    } catch (e) {
       setState(() {
-        _imageBytes = bytes;
+        _errorMessage = 'Decryption failed: ${e.toString()}';
       });
     }
   }
@@ -63,6 +86,12 @@ class _EncryptDecryptImageScreenState extends State<EncryptDecryptImageScreen> {
                 : _imageBytes != null
                 ? Image.memory(_imageBytes!)
                 : Text('No image selected.'),
+            SizedBox(height: 16),
+            if (_errorMessage.isNotEmpty)
+              Text(
+                _errorMessage,
+                style: TextStyle(color: Colors.red),
+              ),
             SizedBox(height: 16),
             Row(
               children: <Widget>[
@@ -89,7 +118,9 @@ class _EncryptDecryptImageScreenState extends State<EncryptDecryptImageScreen> {
               ],
             ),
             SizedBox(height: 16),
-            Text('Result: $_result'),
+            ShowMoreText(
+              text: _result,
+            ),
           ],
         ),
       ),
