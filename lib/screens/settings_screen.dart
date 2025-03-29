@@ -31,7 +31,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           ),
-          // Add more settings options here
         ],
       ),
     );
