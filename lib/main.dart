@@ -14,7 +14,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  late bool _isDarkMode;
+  bool _isDarkMode = false;
 
   @override
   void initState() {
@@ -46,19 +46,19 @@ class _MyAppState extends State<MyApp> {
       routes: appRoutes,
       initialRoute: '/',
       onGenerateRoute: (settings) {
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
         return MaterialPageRoute(
           builder: (context) {
-            final args = settings.arguments as Map<String, dynamic>?;
             switch (settings.name) {
               case '/':
                 return HomeScreen(
-                  isDarkMode: args?['isDarkMode'] ?? _isDarkMode,
-                  toggleTheme: args?['toggleTheme'] ?? _toggleTheme,
+                  isDarkMode: args['isDarkMode'] ?? _isDarkMode,
+                  toggleTheme: args['toggleTheme'] ?? _toggleTheme,
                 );
               case '/settings':
                 return SettingsScreen(
-                  isDarkMode: args?['isDarkMode'] ?? _isDarkMode,
-                  toggleTheme: args?['toggleTheme'] ?? _toggleTheme,
+                  isDarkMode: args['isDarkMode'] ?? _isDarkMode,
+                  toggleTheme: args['toggleTheme'] ?? _toggleTheme,
                 );
               default:
                 return Scaffold(
