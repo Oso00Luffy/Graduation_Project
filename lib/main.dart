@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'screens/home_screen.dart';
-import 'screens/settings_screen.dart';
+import 'routes.dart'; // Import the routes configuration
+import 'screens/home_screen.dart'; // Import HomeScreen
+import 'screens/settings_screen.dart'; // Import SettingsScreen
 
 void main() {
   runApp(MyApp());
@@ -42,9 +43,32 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'SCC - Secure - Chat - Crypt',
       theme: _isDarkMode ? ThemeData.dark() : ThemeData.light(),
-      home: HomeScreen(isDarkMode: _isDarkMode, toggleTheme: _toggleTheme),
-      routes: {
-        '/settings': (context) => SettingsScreen(isDarkMode: _isDarkMode, toggleTheme: _toggleTheme),
+      routes: appRoutes,
+      initialRoute: '/',
+      onGenerateRoute: (settings) {
+        return MaterialPageRoute(
+          builder: (context) {
+            final args = settings.arguments as Map<String, dynamic>?;
+            switch (settings.name) {
+              case '/':
+                return HomeScreen(
+                  isDarkMode: args?['isDarkMode'] ?? _isDarkMode,
+                  toggleTheme: args?['toggleTheme'] ?? _toggleTheme,
+                );
+              case '/settings':
+                return SettingsScreen(
+                  isDarkMode: args?['isDarkMode'] ?? _isDarkMode,
+                  toggleTheme: args?['toggleTheme'] ?? _toggleTheme,
+                );
+              default:
+                return Scaffold(
+                  body: Center(
+                    child: Text('No route defined for ${settings.name}'),
+                  ),
+                );
+            }
+          },
+        );
       },
     );
   }

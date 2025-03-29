@@ -112,9 +112,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           IconButton(
             icon: Icon(Icons.settings),
             onPressed: () {
-              Navigator.push(
+              Navigator.pushNamed(
                 context,
-                MaterialPageRoute(builder: (context) => SettingsScreen(isDarkMode: widget.isDarkMode, toggleTheme: widget.toggleTheme)), // Navigate to SettingsScreen
+                '/settings',
+                arguments: {
+                  'isDarkMode': widget.isDarkMode,
+                  'toggleTheme': widget.toggleTheme,
+                },
               );
             },
           ),
@@ -149,9 +153,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               title: Text('Settings'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(
+                Navigator.pushNamed(
                   context,
-                  MaterialPageRoute(builder: (context) => SettingsScreen(isDarkMode: widget.isDarkMode, toggleTheme: widget.toggleTheme)), // Navigate to SettingsScreen
+                  '/settings',
+                  arguments: {
+                    'isDarkMode': widget.isDarkMode,
+                    'toggleTheme': widget.toggleTheme,
+                  },
                 );
               },
             ),
@@ -262,9 +270,13 @@ class HomeContent extends StatelessWidget {
                 SizedBox(height: 5),
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.push(
+                    Navigator.pushNamed(
                       context,
-                      MaterialPageRoute(builder: (context) => SettingsScreen(isDarkMode: false, toggleTheme: (value) {})), // Navigate to SettingsScreen
+                      '/settings',
+                      arguments: {
+                        'isDarkMode': false,
+                        'toggleTheme': (value) {},
+                      },
                     );
                   },
                   child: Text('Settings'),
