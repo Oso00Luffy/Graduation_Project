@@ -20,7 +20,24 @@ class _FileSenderScreenState extends State<FileSenderScreen> {
     });
   }
 
+  Future<String?> _checkFile(XFile? file) async {
+    // Example file checker logic - check if file is not null and not empty
+    if (file == null) {
+      return 'No file selected.';
+    }
+    if (await file.length() == 0) {
+      return 'File is empty.';
+    }
+    // Add more checks if needed, e.g., file format
+    return null; // No issues
+  }
+
   Future<void> _uploadFile() async {
+    final errorMessage = await _checkFile(_file);
+    if (errorMessage != null) {
+      _showErrorDialog(errorMessage);
+      return;
+    }
     if (_file != null) {
       await _fileTransferService.uploadFile(
         _file!.path,
@@ -33,6 +50,26 @@ class _FileSenderScreenState extends State<FileSenderScreen> {
     await _fileTransferService.downloadFile(
       Uri.parse('https://example.com/download'),
       '/path/to/save/file',
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Error'),
+          content: Text(message),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Close'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 

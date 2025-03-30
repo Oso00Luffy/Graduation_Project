@@ -24,7 +24,7 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
 
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        Navigator.of(context).pushReplacementNamed('/');
+        Navigator.of(context).pushReplacementNamed('/home');
       }
     });
   }

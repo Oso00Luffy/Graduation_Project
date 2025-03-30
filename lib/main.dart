@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'routes.dart'; // Import the routes configuration
 import 'screens/home_screen.dart'; // Import HomeScreen
 import 'screens/settings_screen.dart'; // Import SettingsScreen
+import 'screens/intro_screen.dart'; // Import IntroScreen
 
 void main() {
   runApp(MyApp());
@@ -47,7 +48,8 @@ class _MyAppState extends State<MyApp> {
       title: 'SCC - Secure - Chat - Crypt',
       theme: _isDarkMode ? ThemeData.dark() : ThemeData.light(),
       routes: {
-        '/': (context) => HomeScreen(isDarkMode: _isDarkMode, toggleTheme: _toggleTheme),
+        '/': (context) => IntroScreen(),
+        '/home': (context) => HomeScreen(isDarkMode: _isDarkMode, toggleTheme: _toggleTheme),
         '/settings': (context) => SettingsScreen(isDarkMode: _isDarkMode, toggleTheme: _toggleTheme),
       },
       initialRoute: '/',
