@@ -22,15 +22,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   int _selectedIndex = 0;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  String currentUser = 'Oso00Luffy';
+  String currentUser = 'Osama Jaradat';
 
-  static List<Widget> _widgetOptions = <Widget>[
-    HomeContent(),
-    SettingsScreen(isDarkMode: false, toggleTheme: (value) {}), // Add SettingsScreen here
-    ProfileScreen(userName: 'Oso00Luffy', email: 'osojr2017@gmail.com', profileImagePath: 'assets/images/profile_picture.png'), // Add ProfileScreen here
+  List<Widget> get _widgetOptions => <Widget>[
+    HomeContent(isDarkMode: widget.isDarkMode, toggleTheme: widget.toggleTheme),
+    SettingsScreen(isDarkMode: widget.isDarkMode, toggleTheme: widget.toggleTheme),
+    ProfileScreen(userName: 'Oso00Luffy', email: 'osojr2017@gmail.com', profileImagePath: 'assets/images/profile_picture.png'),
     NotificationsScreen(),
-    FileSenderScreen(), // Add FileSenderScreen here
-    SecureChatScreen(), // Add SecureChatScreen here
+    FileSenderScreen(),
+    SecureChatScreen(),
   ];
 
   @override
@@ -214,6 +214,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 }
 
 class HomeContent extends StatelessWidget {
+  final bool isDarkMode;
+  final Function(bool) toggleTheme;
+
+  const HomeContent({required this.isDarkMode, required this.toggleTheme});
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -246,38 +251,42 @@ class HomeContent extends StatelessWidget {
               backgroundImage: AssetImage('assets/images/profile_picture.png'), // Replace with user profile image
             ),
             SizedBox(width: 20),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  userDetails['name']!,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 5),
-                Text(
-                  userDetails['email']!,
-                  style: TextStyle(color: Colors.grey[700]),
-                ),
-                SizedBox(height: 5),
-                Text(
-                  'Member since: January 2025', // Replace with actual join date
-                  style: TextStyle(color: Colors.grey[700]),
-                ),
-                SizedBox(height: 5),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamed(
-                      context,
-                      '/settings',
-                      arguments: {
-                        'isDarkMode': false,
-                        'toggleTheme': (value) {},
-                      },
-                    );
-                  },
-                  child: Text('Settings'),
-                ),
-              ],
+            Expanded( // Use Expanded or Flexible to prevent overflow
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    userDetails['name']!,
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis, // Prevent overflow
+                  ),
+                  SizedBox(height: 5),
+                  Text(
+                    userDetails['email']!,
+                    style: TextStyle(color: Colors.grey[700]),
+                    overflow: TextOverflow.ellipsis, // Prevent overflow
+                  ),
+                  SizedBox(height: 5),
+                  Text(
+                    'Member since: January 2025', // Replace with actual join date
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                  SizedBox(height: 5),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushNamed(
+                        context,
+                        '/settings',
+                        arguments: {
+                          'isDarkMode': isDarkMode,
+                          'toggleTheme': toggleTheme,
+                        },
+                      );
+                    },
+                    child: Text('Settings'),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -318,46 +327,53 @@ class HomeContent extends StatelessWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: <Widget>[
-                _buildQuickActionButton(
-                  context,
-                  Icons.lock,
-                  'Encrypt Message',
-                  EncryptMessageScreen(),
-                ),
-                _buildQuickActionButton(
-                  context,
-                  Icons.lock_open,
-                  'Decrypt Message',
-                  DecryptMessageScreen(),
-                ),
-                _buildQuickActionButton(
-                  context,
-                  Icons.image,
-                  'Encrypt Image',
-                  EncryptImageScreen(),
-                ),
-                _buildQuickActionButton(
-                  context,
-                  Icons.image_search,
-                  'Decrypt Image',
-                  DecryptImageScreen(),
-                ),
-                _buildQuickActionButton(
-                  context,
-                  Icons.file_upload,
-                  'File Sender',
-                  FileSenderScreen(),
-                ),
-                _buildQuickActionButton(
-                  context,
-                  Icons.chat,
-                  'Secure Chat',
-                  SecureChatScreen(),
-                ),
-              ],
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: <Widget>[
+                  _buildQuickActionButton(
+                    context,
+                    Icons.lock,
+                    'Encrypt Message',
+                    EncryptMessageScreen(),
+                  ),
+                  SizedBox(width: 10),
+                  _buildQuickActionButton(
+                    context,
+                    Icons.lock_open,
+                    'Decrypt Message',
+                    DecryptMessageScreen(),
+                  ),
+                  SizedBox(width: 10),
+                  _buildQuickActionButton(
+                    context,
+                    Icons.image,
+                    'Encrypt Image',
+                    EncryptImageScreen(),
+                  ),
+                  SizedBox(width: 10),
+                  _buildQuickActionButton(
+                    context,
+                    Icons.image_search,
+                    'Decrypt Image',
+                    DecryptImageScreen(),
+                  ),
+                  SizedBox(width: 10),
+                  _buildQuickActionButton(
+                    context,
+                    Icons.file_upload,
+                    'File Sender',
+                    FileSenderScreen(),
+                  ),
+                  SizedBox(width: 10),
+                  _buildQuickActionButton(
+                    context,
+                    Icons.chat,
+                    'Secure Chat',
+                    SecureChatScreen(),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

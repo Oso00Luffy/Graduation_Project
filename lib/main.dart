@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'routes.dart'; // Import the routes configuration
+// Import the routes configuration
 import 'screens/home_screen.dart'; // Import HomeScreen
 import 'screens/settings_screen.dart'; // Import SettingsScreen
 import 'screens/intro_screen.dart'; // Import IntroScreen
