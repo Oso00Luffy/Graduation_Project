@@ -22,9 +22,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   String currentUser = 'Oso00Luffy';
 
   static List<Widget> _widgetOptions = <Widget>[
-    PlaceholderWidget('Settings'),
+    HomeContent(),
+    SettingsScreen(isDarkMode: false, toggleTheme: (value) {}), // Add SettingsScreen here
     PlaceholderWidget('Profile'),
     NotificationsScreen(),
+    FileSenderScreen(), // Add FileSenderScreen here
+    SecureChatScreen(), // Add SecureChatScreen here
   ];
 
   @override
@@ -82,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: Text('View More'),
               onPressed: () {
                 Navigator.of(context).pop();
-                _onItemTapped(2); // Navigate to Notifications Screen
+                _onItemTapped(3); // Navigate to Notifications Screen
               },
             ),
             TextButton(
@@ -112,14 +115,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           IconButton(
             icon: Icon(Icons.settings),
             onPressed: () {
-              Navigator.pushNamed(
-                context,
-                '/settings',
-                arguments: {
-                  'isDarkMode': widget.isDarkMode,
-                  'toggleTheme': widget.toggleTheme,
-                },
-              );
+              _onItemTapped(1); // Navigate to Settings Screen
             },
           ),
         ],
@@ -153,14 +149,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               title: Text('Settings'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(
-                  context,
-                  '/settings',
-                  arguments: {
-                    'isDarkMode': widget.isDarkMode,
-                    'toggleTheme': widget.toggleTheme,
-                  },
-                );
+                _onItemTapped(1);
               },
             ),
             ListTile(
@@ -184,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
       body: FadeTransition(
         opacity: _fadeAnimation,
-        child: _selectedIndex == 0 ? HomeContent(currentUser: currentUser) : _widgetOptions.elementAt(_selectedIndex - 1),
+        child: _widgetOptions.elementAt(_selectedIndex),
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
@@ -204,6 +193,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             icon: Icon(Icons.notifications),
             label: 'Notifications',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.file_upload),
+            label: 'File Sender',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Secure Chat',
+          ),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.amber[800],
@@ -214,10 +211,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 }
 
 class HomeContent extends StatelessWidget {
-  final String currentUser;
-
-  const HomeContent({required this.currentUser});
-
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -225,7 +218,7 @@ class HomeContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          _buildUserProfileSection(context, currentUser), // Pass context here
+          _buildUserProfileSection(context, 'Oso00Luffy'), // Pass context here
           SizedBox(height: 20),
           _buildQuickActionsSection(context),
           SizedBox(height: 20),
@@ -348,6 +341,18 @@ class HomeContent extends StatelessWidget {
                   Icons.image_search,
                   'Decrypt Image',
                   EncryptDecryptImageScreen(), // Replace with appropriate screen
+                ),
+                _buildQuickActionButton(
+                  context,
+                  Icons.file_upload,
+                  'File Sender',
+                  FileSenderScreen(),
+                ),
+                _buildQuickActionButton(
+                  context,
+                  Icons.chat,
+                  'Secure Chat',
+                  SecureChatScreen(),
                 ),
               ],
             ),
