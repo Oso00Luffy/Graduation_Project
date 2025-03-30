@@ -1,18 +1,21 @@
-import 'package:encrypt/encrypt.dart';
-
 class EncryptionService {
-  final _key = Key.fromUtf8('my32lengthsupersecretnooneknows1');
-  final _iv = IV.fromLength(16);
-  final _encrypter = Encrypter(AES(Key.fromUtf8('my32lengthsupersecretnooneknows1')));
-
-  String encrypt(String plainText) {
-    final encrypted = _encrypter.encrypt(plainText, iv: _iv);
-    return encrypted.base64;
+  static String encryptMessage(String message, String key) {
+    // Implement your encryption logic here
+    return "encrypted message";
   }
 
-  String decrypt(String encryptedText) {
-    final encrypted = Encrypted.fromBase64(encryptedText);
-    final decrypted = _encrypter.decrypt(encrypted, iv: _iv);
-    return decrypted;
+  static String decryptMessage(String encryptedMessage, String key) {
+    // Implement your decryption logic here
+    return "decrypted message";
+  }
+
+  static String encryptImage(String imagePath) {
+    // Implement your image encryption logic here
+    return "encrypted image";
+  }
+
+  static String decryptImage(String imagePath) {
+    // Implement your image decryption logic here
+    return "decrypted image";
   }
 }

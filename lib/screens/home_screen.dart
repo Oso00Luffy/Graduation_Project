@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'encrypt_decrypt_message_screen.dart';
-import 'encrypt_decrypt_image_screen.dart';
+import 'encrypt_message_screen.dart';
+import 'decrypt_message_screen.dart';
+import 'encrypt_image_screen.dart';
+import 'decrypt_image_screen.dart';
 import 'file_sender_screen.dart';
 import 'secure_chat_screen.dart';
-import 'settings_screen.dart';  // Import SettingsScreen
+import 'settings_screen.dart';
+import 'profile_screen.dart';  // Import ProfileScreen
 
 class HomeScreen extends StatefulWidget {
   final bool isDarkMode;
@@ -24,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   static List<Widget> _widgetOptions = <Widget>[
     HomeContent(),
     SettingsScreen(isDarkMode: false, toggleTheme: (value) {}), // Add SettingsScreen here
-    PlaceholderWidget('Profile'),
+    ProfileScreen(userName: 'Oso00Luffy', email: 'osojr2017@gmail.com', profileImagePath: 'assets/images/profile_picture.png'), // Add ProfileScreen here
     NotificationsScreen(),
     FileSenderScreen(), // Add FileSenderScreen here
     SecureChatScreen(), // Add SecureChatScreen here
@@ -322,25 +325,25 @@ class HomeContent extends StatelessWidget {
                   context,
                   Icons.lock,
                   'Encrypt Message',
-                  EncryptDecryptMessageScreen(),
+                  EncryptMessageScreen(),
                 ),
                 _buildQuickActionButton(
                   context,
                   Icons.lock_open,
                   'Decrypt Message',
-                  EncryptDecryptMessageScreen(), // Replace with appropriate screen
+                  DecryptMessageScreen(),
                 ),
                 _buildQuickActionButton(
                   context,
                   Icons.image,
                   'Encrypt Image',
-                  EncryptDecryptImageScreen(),
+                  EncryptImageScreen(),
                 ),
                 _buildQuickActionButton(
                   context,
                   Icons.image_search,
                   'Decrypt Image',
-                  EncryptDecryptImageScreen(), // Replace with appropriate screen
+                  DecryptImageScreen(),
                 ),
                 _buildQuickActionButton(
                   context,
