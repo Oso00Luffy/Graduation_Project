@@ -25,9 +25,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   String currentUser = 'Osama Jaradat';
 
   List<Widget> get _widgetOptions => <Widget>[
-    HomeContent(isDarkMode: widget.isDarkMode, toggleTheme: widget.toggleTheme),
+    HomeContent(isDarkMode: widget.isDarkMode, toggleTheme: widget.toggleTheme, currentUser: currentUser),
     SettingsScreen(isDarkMode: widget.isDarkMode, toggleTheme: widget.toggleTheme),
-    ProfileScreen(userName: 'Oso00Luffy', email: 'osojr2017@gmail.com', profileImagePath: 'assets/images/profile_picture.png'),
+    ProfileScreen(userName: currentUser, email: _getUserEmail(currentUser), profileImagePath: 'assets/images/profile_picture.png'),
     NotificationsScreen(),
     FileSenderScreen(),
     SecureChatScreen(),
@@ -63,8 +63,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _switchUser() {
     setState(() {
-      currentUser = currentUser == 'Oso00Luffy' ? 'Moath Hdairis' : 'Oso00Luffy';
+      currentUser = currentUser == 'Osama Jaradat' ? 'Moath Hdairis' : 'Osama Jaradat';
+      print('Switched user to: $currentUser'); // Debug log
     });
+  }
+
+  String _getUserEmail(String userName) {
+    if (userName == 'Osama Jaradat') {
+      return 'osojr2017@gmail.com';
+    } else if (userName == 'Moath Hdairis') {
+      return 'moath.hdairis@example.com';
+    } else {
+      return 'unknown@example.com';
+    }
   }
 
   void _showNotificationsPopup(BuildContext context) {
@@ -216,8 +227,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 class HomeContent extends StatelessWidget {
   final bool isDarkMode;
   final Function(bool) toggleTheme;
+  final String currentUser;
 
-  const HomeContent({required this.isDarkMode, required this.toggleTheme});
+  const HomeContent({required this.isDarkMode, required this.toggleTheme, required this.currentUser});
 
   @override
   Widget build(BuildContext context) {
@@ -226,7 +238,7 @@ class HomeContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          _buildUserProfileSection(context, 'Oso00Luffy'), // Pass context here
+          _buildUserProfileSection(context, currentUser), // Pass context here
           SizedBox(height: 20),
           _buildQuickActionsSection(context),
           SizedBox(height: 20),
@@ -295,9 +307,9 @@ class HomeContent extends StatelessWidget {
   }
 
   Map<String, String> _getUserDetails(String currentUser) {
-    if (currentUser == 'Oso00Luffy') {
+    if (currentUser == 'Osama Jaradat') {
       return {
-        'name': 'Oso00Luffy',
+        'name': 'Osama Jaradat',
         'email': 'osojr2017@gmail.com',
       };
     } else if (currentUser == 'Moath Hdairis') {
