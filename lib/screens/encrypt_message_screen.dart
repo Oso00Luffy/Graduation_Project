@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import for Clipboard functionality
 import '../services/encryption_service.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart';
@@ -27,6 +28,17 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
         _encryptedMessage = 'Please enter both a message and a key.';
       });
     }
+  }
+
+  void _copyToClipboard(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Copied to clipboard!')),
+    );
+  }
+
+  void _navigateToHome(BuildContext context) {
+    Navigator.of(context).popUntil((route) => route.isFirst); // Navigate back to Home
   }
 
   @override
@@ -62,9 +74,23 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
             ),
             SizedBox(height: 16),
             if (_encryptedMessage != null)
-              Text(
-                'Encrypted Message: $_encryptedMessage',
-                textAlign: TextAlign.center,
+              Column(
+                children: [
+                  Text(
+                    'Encrypted Message: $_encryptedMessage',
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16),
+                  CustomButton(
+                    text: 'Copy to Clipboard',
+                    onPressed: () => _copyToClipboard(_encryptedMessage!),
+                  ),
+                  SizedBox(height: 16),
+                  CustomButton(
+                    text: 'Go to Home',
+                    onPressed: () => _navigateToHome(context),
+                  ),
+                ],
               ),
           ],
         ),
