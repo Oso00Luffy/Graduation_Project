@@ -18,7 +18,7 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     final key = _keyController.text;
 
     if (encryptedMessage.isNotEmpty && key.isNotEmpty) {
-      final decryptedMessage = EncryptionService.decryptMessage(encryptedMessage, key);
+      final decryptedMessage = EncryptionService.decryptAES(encryptedMessage, key);
       setState(() {
         _decryptedMessage = decryptedMessage;
       });
@@ -40,33 +40,36 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Decrypt Message'),
+        title: Text('Decrypt Message (AES)'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: <Widget>[
-            CustomTextField(
-              controller: _messageController,
-              hintText: 'Enter the encrypted message',
-            ),
-            SizedBox(height: 16),
-            CustomTextField(
-              controller: _keyController,
-              hintText: 'Enter your key',
-            ),
-            SizedBox(height: 16),
-            CustomButton(
-              text: 'Decrypt',
-              onPressed: _decryptMessage,
-            ),
-            SizedBox(height: 16),
-            if (_decryptedMessage != null)
-              Text(
-                'Decrypted Message: $_decryptedMessage',
-                textAlign: TextAlign.center,
+        child: SingleChildScrollView(
+          child: Column(
+            children: <Widget>[
+              CustomTextField(
+                controller: _messageController,
+                hintText: 'Enter the encrypted message',
               ),
-          ],
+              SizedBox(height: 16),
+              CustomTextField(
+                controller: _keyController,
+                hintText: 'Enter your AES key',
+              ),
+              SizedBox(height: 16),
+              CustomButton(
+                text: 'Decrypt',
+                onPressed: _decryptMessage,
+              ),
+              SizedBox(height: 16),
+              if (_decryptedMessage != null)
+                SelectableText(
+                  'Decrypted Message:\n$_decryptedMessage',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16),
+                ),
+            ],
+          ),
         ),
       ),
     );
