@@ -18,6 +18,8 @@ dependencies:
   web_socket_channel: ^2.1.0
   path_provider: ^2.0.11
   shared_preferences: ^2.5.3
+  pointycastle: ^3.9.1
+  image: ^4.5.4
 
 dev_dependencies:
   flutter_test:
