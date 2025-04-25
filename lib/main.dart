@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// Import the routes configuration
-import 'screens/home_screen.dart'; // Import HomeScreen
-import 'screens/settings_screen.dart'; // Import SettingsScreen
-import 'screens/intro_screen.dart'; // Import IntroScreen
+import 'package:firebase_core/firebase_core.dart';
+import 'screens/home_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/intro_screen.dart';
+import 'screens/login_screen.dart'; // NEW: import the login screen
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(); // NEW: initialize Firebase
   runApp(MyApp());
 }
 
@@ -46,12 +49,13 @@ class _MyAppState extends State<MyApp> {
     print("Building MaterialApp with Dark Mode = $_isDarkMode");
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'SCC - Secure - Chat - Crypt',
+      title: 'SCC App',
       theme: _isDarkMode ? ThemeData.dark() : ThemeData.light(),
       routes: {
-        '/': (context) => IntroScreen(),
+        '/': (context) => LoginScreen(), // NEW: Start with LoginScreen
         '/home': (context) => HomeScreen(isDarkMode: _isDarkMode, toggleTheme: _toggleTheme),
         '/settings': (context) => SettingsScreen(isDarkMode: _isDarkMode, toggleTheme: _toggleTheme),
+        '/intro': (context) => IntroScreen(),
       },
       initialRoute: '/',
     );
