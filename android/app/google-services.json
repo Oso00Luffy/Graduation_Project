@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "76800991751",
+    "project_id": "sccapp-c3165",
+    "storage_bucket": "sccapp-c3165.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:76800991751:android:8ad040615917a6c4a380a2",
+        "android_client_info": {
+          "package_name": "com.example.graduation_project"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "76800991751-g9t744ivc9tmuvcm1idjbu9i7o39hnjd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5uwPZ8Z0a6pncKbRjeKcfqrBNouMaAjY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "76800991751-g9t744ivc9tmuvcm1idjbu9i7o39hnjd.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

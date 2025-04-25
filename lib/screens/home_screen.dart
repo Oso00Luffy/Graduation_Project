@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'encrypt_message_screen.dart';
 import 'decrypt_message_screen.dart';
@@ -6,13 +7,13 @@ import 'decrypt_image_screen.dart';
 import 'file_sender_screen.dart';
 import 'secure_chat_screen.dart';
 import 'settings_screen.dart';
-import 'profile_screen.dart';  // Import ProfileScreen
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isDarkMode;
   final Function(bool) toggleTheme;
 
-  const HomeScreen({required this.isDarkMode, required this.toggleTheme});
+  const HomeScreen({Key? key, required this.isDarkMode, required this.toggleTheme}) : super(key: key);
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -22,12 +23,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   int _selectedIndex = 0;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  String currentUser = 'Osama Jaradat';
 
   List<Widget> get _widgetOptions => <Widget>[
-    HomeContent(isDarkMode: widget.isDarkMode, toggleTheme: widget.toggleTheme, currentUser: currentUser),
-    SettingsScreen(isDarkMode: widget.isDarkMode, toggleTheme: widget.toggleTheme),
-    ProfileScreen(userName: currentUser, email: _getUserEmail(currentUser), profileImagePath: 'assets/images/profile_picture.png'),
+    HomeContent(
+      isDarkMode: widget.isDarkMode,
+      toggleTheme: widget.toggleTheme,
+    ),
+    SettingsScreen(
+      isDarkMode: widget.isDarkMode,
+      toggleTheme: widget.toggleTheme,
+    ),
+    ProfileScreen(),
     NotificationsScreen(),
     FileSenderScreen(),
     SecureChatScreen(),
@@ -61,49 +67,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     });
   }
 
-  void _switchUser() {
-    setState(() {
-      currentUser = currentUser == 'Osama Jaradat' ? 'Moath Hdairis' : 'Osama Jaradat';
-      print('Switched user to: $currentUser'); // Debug log
-    });
-  }
-
-  String _getUserEmail(String userName) {
-    if (userName == 'Osama Jaradat') {
-      return 'osojr2017@gmail.com';
-    } else if (userName == 'Moath Hdairis') {
-      return 'moath.hdairis@example.com';
-    } else {
-      return 'unknown@example.com';
-    }
-  }
-
   void _showNotificationsPopup(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Notifications'),
+          title: const Text('Notifications'),
           content: SingleChildScrollView(
             child: ListBody(
-              children: <Widget>[
+              children: const <Widget>[
                 Text('Notification 1'),
                 Text('Notification 2'),
                 Text('Notification 3'),
-                // Add more notifications here
               ],
             ),
           ),
           actions: <Widget>[
             TextButton(
-              child: Text('View More'),
+              child: const Text('View More'),
               onPressed: () {
                 Navigator.of(context).pop();
-                _onItemTapped(3); // Navigate to Notifications Screen
+                _onItemTapped(3);
               },
             ),
             TextButton(
-              child: Text('Close'),
+              child: const Text('Close'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
@@ -118,19 +106,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('SCC - Secure - Chat - Crypt'),
+        title: const Text('SCC - Secure - Chat - Crypt'),
         actions: [
           IconButton(
-            icon: Icon(Icons.notifications),
-            onPressed: () {
-              _showNotificationsPopup(context); // Show notifications popup
-            },
+            icon: const Icon(Icons.notifications),
+            onPressed: () => _showNotificationsPopup(context),
           ),
           IconButton(
-            icon: Icon(Icons.settings),
-            onPressed: () {
-              _onItemTapped(1); // Navigate to Settings Screen
-            },
+            icon: const Icon(Icons.settings),
+            onPressed: () => _onItemTapped(1),
           ),
         ],
       ),
@@ -138,10 +122,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Colors.blue,
-              ),
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.blue),
               child: Text(
                 'Menu',
                 style: TextStyle(
@@ -151,37 +133,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ),
             ListTile(
-              leading: Icon(Icons.home),
-              title: Text('Home'),
+              leading: const Icon(Icons.home),
+              title: const Text('Home'),
               onTap: () {
                 Navigator.pop(context);
                 _onItemTapped(0);
               },
             ),
             ListTile(
-              leading: Icon(Icons.settings),
-              title: Text('Settings'),
+              leading: const Icon(Icons.settings),
+              title: const Text('Settings'),
               onTap: () {
                 Navigator.pop(context);
                 _onItemTapped(1);
               },
             ),
             ListTile(
-              leading: Icon(Icons.person),
-              title: Text('Profile'),
+              leading: const Icon(Icons.person),
+              title: const Text('Profile'),
               onTap: () {
                 Navigator.pop(context);
                 _onItemTapped(2);
               },
             ),
-            ListTile(
-              leading: Icon(Icons.switch_account),
-              title: Text('Switch User'),
-              onTap: () {
-                Navigator.pop(context);
-                _switchUser();
-              },
-            ),
+            // Removed Switch User
           ],
         ),
       ),
@@ -227,63 +202,72 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 class HomeContent extends StatelessWidget {
   final bool isDarkMode;
   final Function(bool) toggleTheme;
-  final String currentUser;
 
-  const HomeContent({required this.isDarkMode, required this.toggleTheme, required this.currentUser});
+  const HomeContent({
+    Key? key,
+    required this.isDarkMode,
+    required this.toggleTheme,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return SingleChildScrollView(
-      padding: EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          _buildUserProfileSection(context, currentUser), // Pass context here
-          SizedBox(height: 20),
+          _buildUserProfileSection(context, user),
+          const SizedBox(height: 20),
           _buildQuickActionsSection(context),
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
           _buildRecentActivitiesSection(),
         ],
       ),
     );
   }
 
-  Widget _buildUserProfileSection(BuildContext context, String currentUser) { // Pass context here
-    final userDetails = _getUserDetails(currentUser);
+  Widget _buildUserProfileSection(BuildContext context, User? user) {
+    final String displayName = user?.displayName ?? 'No Name';
+    final String email = user?.email ?? 'No Email';
+    final String? photoURL = user?.photoURL;
 
     return Card(
       elevation: 5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: <Widget>[
             CircleAvatar(
               radius: 40,
-              backgroundImage: AssetImage('assets/images/profile_picture.png'), // Replace with user profile image
+              backgroundImage: photoURL != null
+                  ? NetworkImage(photoURL)
+                  : const AssetImage('assets/images/profile_picture.png') as ImageProvider,
             ),
-            SizedBox(width: 20),
-            Expanded( // Use Expanded or Flexible to prevent overflow
+            const SizedBox(width: 20),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    userDetails['name']!,
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis, // Prevent overflow
+                    displayName,
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(height: 5),
+                  const SizedBox(height: 5),
                   Text(
-                    userDetails['email']!,
+                    email,
                     style: TextStyle(color: Colors.grey[700]),
-                    overflow: TextOverflow.ellipsis, // Prevent overflow
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(height: 5),
-                  Text(
-                    'Member since: January 2025', // Replace with actual join date
-                    style: TextStyle(color: Colors.grey[700]),
+                  const SizedBox(height: 5),
+                  const Text(
+                    'Member since: January 2025',
+                    style: TextStyle(color: Colors.grey),
                   ),
-                  SizedBox(height: 5),
+                  const SizedBox(height: 5),
                   ElevatedButton(
                     onPressed: () {
                       Navigator.pushNamed(
@@ -295,7 +279,7 @@ class HomeContent extends StatelessWidget {
                         },
                       );
                     },
-                    child: Text('Settings'),
+                    child: const Text('Settings'),
                   ),
                 ],
               ),
@@ -306,39 +290,20 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Map<String, String> _getUserDetails(String currentUser) {
-    if (currentUser == 'Osama Jaradat') {
-      return {
-        'name': 'Osama Jaradat',
-        'email': 'osojr2017@gmail.com',
-      };
-    } else if (currentUser == 'Moath Hdairis') {
-      return {
-        'name': 'Moath Hdairis',
-        'email': 'moath.hdairis@example.com',
-      };
-    } else {
-      return {
-        'name': 'Unknown User',
-        'email': 'unknown@example.com',
-      };
-    }
-  }
-
   Widget _buildQuickActionsSection(BuildContext context) {
     return Card(
       elevation: 5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
+            const Text(
               'Quick Actions',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -349,35 +314,35 @@ class HomeContent extends StatelessWidget {
                     'Encrypt Message',
                     EncryptMessageScreen(),
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   _buildQuickActionButton(
                     context,
                     Icons.lock_open,
                     'Decrypt Message',
                     DecryptMessageScreen(),
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   _buildQuickActionButton(
                     context,
                     Icons.image,
                     'Encrypt Image',
                     EncryptImageScreen(),
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   _buildQuickActionButton(
                     context,
                     Icons.image_search,
                     'Decrypt Image',
                     DecryptImageScreen(),
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   _buildQuickActionButton(
                     context,
                     Icons.file_upload,
                     'File Sender',
                     FileSenderScreen(),
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   _buildQuickActionButton(
                     context,
                     Icons.chat,
@@ -407,8 +372,8 @@ class HomeContent extends StatelessWidget {
           },
           child: Icon(icon, size: 30),
         ),
-        SizedBox(height: 5),
-        Text(label, style: TextStyle(fontSize: 12)),
+        const SizedBox(height: 5),
+        Text(label, style: const TextStyle(fontSize: 12)),
       ],
     );
   }
@@ -419,16 +384,17 @@ class HomeContent extends StatelessWidget {
       elevation: 5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
+            const Text(
               'Recent Activities',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 10),
-            ...activities.map((activity) => _buildActivityItem(activity['description']!, activity['timeAgo']!)).toList(),
+            const SizedBox(height: 10),
+            ...activities.map((activity) =>
+                _buildActivityItem(activity['description']!, activity['timeAgo']!)).toList(),
           ],
         ),
       ),
@@ -446,22 +412,9 @@ class HomeContent extends StatelessWidget {
 
   Widget _buildActivityItem(String activity, String timeAgo) {
     return ListTile(
-      leading: Icon(Icons.history),
+      leading: const Icon(Icons.history),
       title: Text(activity),
       subtitle: Text(timeAgo),
-    );
-  }
-}
-
-class PlaceholderWidget extends StatelessWidget {
-  final String text;
-
-  const PlaceholderWidget(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(text, style: TextStyle(fontSize: 24)),
     );
   }
 }
@@ -469,7 +422,7 @@ class PlaceholderWidget extends StatelessWidget {
 class NotificationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return const Center(
       child: Text('No new notifications', style: TextStyle(fontSize: 24)),
     );
   }

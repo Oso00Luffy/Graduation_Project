@@ -14,5 +14,5 @@ final Map<String, WidgetBuilder> routes = {
   '/decrypt-message': (context) => DecryptMessageScreen(),
   '/encrypt-image': (context) => EncryptImageScreen(),
   '/decrypt-image': (context) => DecryptImageScreen(),
-  '/profile': (context) => ProfileScreen(userName: 'Oso00Luffy', email: 'osojr2017@gmail.com', profileImagePath: 'assets/images/profile_picture.png'), // Add ProfileScreen route
+  '/profile': (context) => ProfileScreen(), // Add ProfileScreen route
 };
