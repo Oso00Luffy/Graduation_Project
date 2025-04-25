@@ -45,6 +45,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     print("Building MaterialApp with Dark Mode = $_isDarkMode");
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'SCC - Secure - Chat - Crypt',
       theme: _isDarkMode ? ThemeData.dark() : ThemeData.light(),
       routes: {
