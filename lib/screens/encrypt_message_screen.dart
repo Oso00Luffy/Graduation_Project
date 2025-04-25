@@ -15,19 +15,27 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
   String? _encryptedMessage;
 
   String selectedEncryptionType = 'AES'; // Default
-  RSAPublicKey? _publicKey; // Make it nullable to handle initialization
+  RSAPublicKey? _publicKey;
+  bool _isLoading = false; // For loading indicator
 
-  @override
-  void initState() {
-    super.initState();
-    // Generate RSA keys for testing (you can later load real ones)
-    final keyPair = EncryptionService.generateRSAKeyPair();
+  // New: track if key is being generated separately
+  bool _isKeyGenerating = false;
+
+  Future<void> _generateRSAKeysAsync() async {
     setState(() {
-      _publicKey = keyPair['publicKey']; // Initialize the public key
+      _isKeyGenerating = true;
+      _encryptedMessage = null;
+    });
+    await Future.delayed(const Duration(milliseconds: 100)); // Let UI update
+    // Use a smaller key for web demo!
+    final keyPair = await EncryptionService.generateRSAKeyPairAsync(bitLength: 512); // <-- 512 for demo
+    setState(() {
+      _publicKey = keyPair['publicKey'];
+      _isKeyGenerating = false;
     });
   }
 
-  void _encryptMessage() {
+  Future<void> _encryptMessage() async {
     final message = _messageController.text;
     final key = _keyController.text;
 
@@ -38,28 +46,30 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
       return;
     }
 
-    if (_publicKey == null) {
+    if (selectedEncryptionType != 'AES' && _publicKey == null) {
       setState(() {
-        _encryptedMessage = 'RSA Public Key is not ready.';
+        _encryptedMessage = 'RSA Public Key is not ready. Please generate a key first.';
       });
       return;
     }
 
-    String result;
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 100)); // Let spinner show
 
+    String result;
     switch (selectedEncryptionType) {
       case 'AES':
         if (key.isEmpty) {
           result = 'Please enter an AES key.';
         } else {
-          result = EncryptionService.encryptAES(message, key);
+          result = await EncryptionService.encryptAESAsync(message, key);
         }
         break;
       case 'RSA':
-        result = EncryptionService.encryptRSA(message, _publicKey!); // Use the public key
+        result = await EncryptionService.encryptRSAAsync(message, _publicKey!);
         break;
       case 'Hybrid':
-        result = EncryptionService.hybridEncrypt(message, _publicKey!); // Use the public key
+        result = await EncryptionService.hybridEncryptAsync(message, _publicKey!);
         break;
       default:
         result = 'Unknown encryption type.';
@@ -67,6 +77,7 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
 
     setState(() {
       _encryptedMessage = result;
+      _isLoading = false;
     });
   }
 
@@ -85,7 +96,16 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
+        child: _isLoading || _isKeyGenerating
+            ? Center(child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(_isKeyGenerating ? "Generating RSA Key..." : "Encrypting...")
+          ],
+        ))
+            : SingleChildScrollView(
           child: Column(
             children: <Widget>[
               DropdownButton<String>(
@@ -112,6 +132,25 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                 CustomTextField(
                   controller: _keyController,
                   hintText: 'Enter your AES key',
+                ),
+              ],
+              if (selectedEncryptionType != 'AES') ...[
+                SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _publicKey == null
+                            ? 'No RSA Key generated yet.'
+                            : 'RSA Key ready (bit length: ${_publicKey!.modulus!.bitLength})',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: _isKeyGenerating ? null : _generateRSAKeysAsync,
+                      child: Text('Generate RSA Key'),
+                    ),
+                  ],
                 ),
               ],
               SizedBox(height: 16),

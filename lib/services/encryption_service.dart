@@ -2,9 +2,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:math';
 import 'package:encrypt/encrypt.dart';
-import 'package:pointycastle/asymmetric/api.dart';
-import 'package:pointycastle/key_generators/rsa_key_generator.dart';
-import 'package:pointycastle/random/fortuna_random.dart';
 import 'package:pointycastle/export.dart';
 
 class EncryptionService {
@@ -27,6 +24,13 @@ class EncryptionService {
     };
   }
 
+  static Future<Map<String, dynamic>> generateRSAKeyPairAsync({int bitLength = 2048}) async {
+    return await Future.delayed(
+      const Duration(milliseconds: 10),
+          () => generateRSAKeyPair(bitLength: bitLength),
+    );
+  }
+
   // ---------------- AES ----------------
   static String encryptAES(String message, String key) {
     final aesKey = Key.fromUtf8(key.padRight(32, ' '));
@@ -40,6 +44,13 @@ class EncryptionService {
     };
 
     return base64.encode(utf8.encode(jsonEncode(result)));
+  }
+
+  static Future<String> encryptAESAsync(String message, String key) async {
+    return await Future.delayed(
+      const Duration(milliseconds: 10),
+          () => encryptAES(message, key),
+    );
   }
 
   static String decryptAES(String encryptedMessage, String key) {
@@ -70,6 +81,13 @@ class EncryptionService {
     return encrypter.encrypt(message).base64;
   }
 
+  static Future<String> encryptRSAAsync(String message, RSAPublicKey publicKey) async {
+    return await Future.delayed(
+      const Duration(milliseconds: 10),
+          () => encryptRSA(message, publicKey),
+    );
+  }
+
   static String decryptRSA(String encryptedMessage, RSAPrivateKey privateKey) {
     try {
       final encrypter = rsaEncrypter(privateKey: privateKey);
@@ -98,6 +116,13 @@ class EncryptionService {
     };
 
     return base64.encode(utf8.encode(jsonEncode(result)));
+  }
+
+  static Future<String> hybridEncryptAsync(String message, RSAPublicKey rsaPublicKey) async {
+    return await Future.delayed(
+      const Duration(milliseconds: 10),
+          () => hybridEncrypt(message, rsaPublicKey),
+    );
   }
 
   static String hybridDecrypt(String encryptedMessage, RSAPrivateKey rsaPrivateKey) {
