@@ -312,15 +312,16 @@ class HomeContent extends StatelessWidget {
                     context,
                     Icons.lock,
                     'Encrypt Message',
-                    EncryptMessageScreen(),
+                    const EncryptMessageScreen(),
                   ),
                   const SizedBox(width: 10),
                   _buildQuickActionButton(
                     context,
                     Icons.lock_open,
                     'Decrypt Message',
-                    DecryptMessageScreen(),
+                    const DecryptMessageScreen(),
                   ),
+
                   const SizedBox(width: 10),
                   _buildQuickActionButton(
                     context,

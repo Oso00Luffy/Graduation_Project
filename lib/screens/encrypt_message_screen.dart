@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/encryption_service.dart';
-import '../widgets/custom_text_field.dart';
-import '../widgets/custom_button.dart';
-import 'package:pointycastle/asymmetric/api.dart';
+import '../services/encryption_service.dart';  // فرضًا أن خدمات التشفير في هذا الملف
+import '../widgets/custom_text_field.dart';    // واجهة لإدخال النصوص
+import '../widgets/custom_button.dart';        // زر لتفعيل التشفير
 
 class EncryptMessageScreen extends StatefulWidget {
   @override
@@ -14,60 +13,34 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
   final _keyController = TextEditingController();
   String? _encryptedMessage;
 
-  String selectedEncryptionType = 'AES'; // Default
-  RSAPublicKey? _publicKey; // Make it nullable to handle initialization
+  // متغير لاختيار نوع التشفير
+  String selectedEncryptionType = 'AES'; // القيمة الافتراضية
 
-  @override
-  void initState() {
-    super.initState();
-    // Generate RSA keys for testing (you can later load real ones)
-    final keyPair = EncryptionService.generateRSAKeyPair();
-    setState(() {
-      _publicKey = keyPair['publicKey']; // Initialize the public key
-    });
-  }
-
+  // دالة لتشفير الرسالة بناءً على نوع التشفير المختار
   void _encryptMessage() {
     final message = _messageController.text;
     final key = _keyController.text;
 
-    if (message.isEmpty) {
+    if (message.isNotEmpty && key.isNotEmpty) {
+      String encryptedMessage = '';
+      if (selectedEncryptionType == 'AES') {
+        encryptedMessage = EncryptionService.encryptAES(message, key);
+      } else if (selectedEncryptionType == 'RSA') {
+        encryptedMessage = EncryptionService.encryptRSA(message, EncryptionService.publicKey);
+      } else if (selectedEncryptionType == 'ChaCha20') {
+        encryptedMessage = EncryptionService.encryptChaCha20(message, key);
+      } else if (selectedEncryptionType == 'ECC') {
+        encryptedMessage = EncryptionService.encryptECC(message, key);
+      }
+
       setState(() {
-        _encryptedMessage = 'Please enter a message.';
+        _encryptedMessage = encryptedMessage;
       });
-      return;
-    }
-
-    if (_publicKey == null) {
+    } else {
       setState(() {
-        _encryptedMessage = 'RSA Public Key is not ready.';
+        _encryptedMessage = 'Please enter both a message and a key.';
       });
-      return;
     }
-
-    String result;
-
-    switch (selectedEncryptionType) {
-      case 'AES':
-        if (key.isEmpty) {
-          result = 'Please enter an AES key.';
-        } else {
-          result = EncryptionService.encryptAES(message, key);
-        }
-        break;
-      case 'RSA':
-        result = EncryptionService.encryptRSA(message, _publicKey!); // Use the public key
-        break;
-      case 'Hybrid':
-        result = EncryptionService.hybridEncrypt(message, _publicKey!); // Use the public key
-        break;
-      default:
-        result = 'Unknown encryption type.';
-    }
-
-    setState(() {
-      _encryptedMessage = result;
-    });
   }
 
   @override
@@ -88,38 +61,46 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: <Widget>[
-              DropdownButton<String>(
-                value: selectedEncryptionType,
-                items: ['AES', 'RSA', 'Hybrid']
-                    .map((type) => DropdownMenuItem(
-                  value: type,
-                  child: Text(type),
-                ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedEncryptionType = value!;
-                  });
-                },
-              ),
-              SizedBox(height: 16),
+              // حقل إدخال الرسالة
               CustomTextField(
                 controller: _messageController,
                 hintText: 'Enter your message',
               ),
-              if (selectedEncryptionType == 'AES') ...[
-                SizedBox(height: 16),
-                CustomTextField(
-                  controller: _keyController,
-                  hintText: 'Enter your AES key',
-                ),
-              ],
               SizedBox(height: 16),
+
+              // حقل إدخال المفتاح
+              CustomTextField(
+                controller: _keyController,
+                hintText: 'Enter your key',
+              ),
+              SizedBox(height: 16),
+
+              // Dropdown لاختيار نوع التشفير
+              DropdownButton<String>(
+                value: selectedEncryptionType,
+                onChanged: (String? newValue) {
+                  setState(() {
+                    selectedEncryptionType = newValue!;
+                  });
+                },
+                items: <String>['AES', 'RSA', 'ChaCha20', 'ECC']
+                    .map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+              ),
+              SizedBox(height: 16),
+
+              // زر التشفير
               CustomButton(
                 text: 'Encrypt',
                 onPressed: _encryptMessage,
               ),
               SizedBox(height: 16),
+
+              // عرض النتيجة بعد التشفير
               if (_encryptedMessage != null)
                 SelectableText(
                   'Encrypted Message:\n$_encryptedMessage',

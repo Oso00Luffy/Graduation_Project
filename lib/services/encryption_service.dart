@@ -1,32 +1,14 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:math';
+import 'dart:typed_data';
+
 import 'package:encrypt/encrypt.dart';
+import 'package:pointycastle/export.dart' as pc;
 import 'package:pointycastle/asymmetric/api.dart';
-import 'package:pointycastle/key_generators/rsa_key_generator.dart';
 import 'package:pointycastle/random/fortuna_random.dart';
-import 'package:pointycastle/export.dart';
+import 'package:ecies/ecies.dart' as ecies;
 
 class EncryptionService {
-  // ---------------- RSA Key Generation ----------------
-  static Map<String, dynamic> generateRSAKeyPair({int bitLength = 2048}) {
-    final secureRandom = FortunaRandom();
-    final seed = Uint8List.fromList(List<int>.generate(32, (_) => Random.secure().nextInt(256)));
-    secureRandom.seed(KeyParameter(seed));
-
-    final keyGen = RSAKeyGenerator()
-      ..init(ParametersWithRandom(
-        RSAKeyGeneratorParameters(BigInt.parse('65537'), bitLength, 64),
-        secureRandom,
-      ));
-
-    final pair = keyGen.generateKeyPair();
-    return {
-      'publicKey': pair.publicKey as RSAPublicKey,
-      'privateKey': pair.privateKey as RSAPrivateKey,
-    };
-  }
-
   // ---------------- AES ----------------
   static String encryptAES(String message, String key) {
     final aesKey = Key.fromUtf8(key.padRight(32, ' '));
@@ -38,7 +20,6 @@ class EncryptionService {
       'iv': iv.base64,
       'data': encrypted.base64,
     };
-
     return base64.encode(utf8.encode(jsonEncode(result)));
   }
 
@@ -58,64 +39,74 @@ class EncryptionService {
   }
 
   // ---------------- RSA ----------------
-  static Encrypter rsaEncrypter({RSAPublicKey? publicKey, RSAPrivateKey? privateKey}) {
-    return Encrypter(RSA(
-      publicKey: publicKey,
-      privateKey: privateKey,
-    ));
-  }
-
   static String encryptRSA(String message, RSAPublicKey publicKey) {
-    final encrypter = rsaEncrypter(publicKey: publicKey);
+    final encrypter = Encrypter(RSA(publicKey: publicKey));
     return encrypter.encrypt(message).base64;
   }
 
   static String decryptRSA(String encryptedMessage, RSAPrivateKey privateKey) {
     try {
-      final encrypter = rsaEncrypter(privateKey: privateKey);
+      final encrypter = Encrypter(RSA(privateKey: privateKey));
       return encrypter.decrypt64(encryptedMessage);
     } catch (e) {
       return 'RSA Decryption failed: ${e.toString()}';
     }
   }
 
-  // ---------------- Hybrid Encryption (RSA + AES) ----------------
-  static String hybridEncrypt(String message, RSAPublicKey rsaPublicKey) {
-    // 1. Generate random AES key
-    final randomAESKeyBytes = List<int>.generate(32, (_) => Random.secure().nextInt(256));
-    final aesKeyString = base64.encode(randomAESKeyBytes);
+  // ---------------- ChaCha20 ----------------
+  static String encryptChaCha20(String message, String key) {
+    final keyBytes = Uint8List.fromList(utf8.encode(key.padRight(32, ' ')));
+    final nonce = IV.fromSecureRandom(12);
+    final encrypter = Encrypter(ChaCha20(Key(keyBytes), nonce));
+    final encrypted = encrypter.encrypt(message);
 
-    // 2. Encrypt message using AES
-    final encryptedData = encryptAES(message, aesKeyString);
-
-    // 3. Encrypt AES key using RSA
-    final encryptedAESKey = encryptRSA(aesKeyString, rsaPublicKey);
-
-    // 4. Combine and encode
     final result = {
-      'aesKey': encryptedAESKey,
-      'data': encryptedData,
+      'nonce': nonce.base64,
+      'data': encrypted.base64,
     };
-
     return base64.encode(utf8.encode(jsonEncode(result)));
   }
 
-  static String hybridDecrypt(String encryptedMessage, RSAPrivateKey rsaPrivateKey) {
+  static String decryptChaCha20(String encryptedMessage, String key) {
     try {
       final decoded = utf8.decode(base64.decode(encryptedMessage));
       final data = jsonDecode(decoded);
-
-      final encryptedAESKey = data['aesKey'];
+      final nonce = IV.fromBase64(data['nonce']);
       final encryptedData = data['data'];
 
-      final aesKey = decryptRSA(encryptedAESKey, rsaPrivateKey);
-      return decryptAES(encryptedData, aesKey);
+      final keyBytes = Uint8List.fromList(utf8.encode(key.padRight(32, ' ')));
+      final encrypter = Encrypter(ChaCha20(Key(keyBytes), nonce));
+      return encrypter.decrypt64(encryptedData);
     } catch (e) {
-      return 'Hybrid Decryption failed: ${e.toString()}';
+      return 'ChaCha20 Decryption failed: ${e.toString()}';
     }
   }
 
-  // ---------------- Placeholders for image ----------------
-  static String encryptImage(String imagePath) => "encrypted image";
-  static String decryptImage(String imagePath) => "decrypted image";
+  // ---------------- ECC (ECIES) ----------------
+  static Future<String> encryptECC(String message, String publicKeyHex) async {
+    final messageBytes = utf8.encode(message);
+    final encrypted = await ecies.encrypt(publicKeyHex, messageBytes);
+    return base64.encode(encrypted);
+  }
+
+  static Future<String> decryptECC(String encryptedMessage, String privateKeyHex) async {
+    try {
+      final encryptedBytes = base64.decode(encryptedMessage);
+      final decrypted = await ecies.decrypt(privateKeyHex, encryptedBytes);
+      return utf8.decode(decrypted);
+    } catch (e) {
+      return 'ECC Decryption failed: ${e.toString()}';
+    }
+  }
+
+  // ---------------- Hybrid (AES + ChaCha20) ----------------
+  static String hybridEncrypt(String message, String aesKey, String chaChaKey) {
+    final aesEncrypted = encryptAES(message, aesKey);
+    return encryptChaCha20(aesEncrypted, chaChaKey);
+  }
+
+  static String hybridDecrypt(String encryptedMessage, String aesKey, String chaChaKey) {
+    final decryptedChaCha = decryptChaCha20(encryptedMessage, chaChaKey);
+    return decryptAES(decryptedChaCha, aesKey);
+  }
 }
