@@ -23,23 +23,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   int _selectedIndex = 0;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  String currentUser = 'Osama Jaradat';
 
   List<Widget> get _widgetOptions => <Widget>[
     HomeContent(
       isDarkMode: widget.isDarkMode,
       toggleTheme: widget.toggleTheme,
-      currentUser: currentUser,
     ),
     SettingsScreen(
       isDarkMode: widget.isDarkMode,
       toggleTheme: widget.toggleTheme,
     ),
-    ProfileScreen(
-      userName: currentUser,
-      email: _getUserEmail(currentUser),
-      profileImagePath: 'assets/images/profile_picture.png',
-    ),
+    ProfileScreen(),
     NotificationsScreen(),
     FileSenderScreen(),
     SecureChatScreen(),
@@ -71,23 +65,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       _animationController.reset();
       _animationController.forward();
     });
-  }
-
-  void _switchUser() {
-    setState(() {
-      currentUser = currentUser == 'Osama Jaradat' ? 'Moath Hdairis' : 'Osama Jaradat';
-      print('Switched user to: $currentUser');
-    });
-  }
-
-  static String _getUserEmail(String userName) {
-    if (userName == 'Osama Jaradat') {
-      return 'osojr2017@gmail.com';
-    } else if (userName == 'Moath Hdairis') {
-      return 'moath.hdairis@example.com';
-    } else {
-      return 'unknown@example.com';
-    }
   }
 
   void _showNotificationsPopup(BuildContext context) {
@@ -179,14 +156,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 _onItemTapped(2);
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.switch_account),
-              title: const Text('Switch User'),
-              onTap: () {
-                Navigator.pop(context);
-                _switchUser();
-              },
-            ),
+            // Removed Switch User
           ],
         ),
       ),
@@ -232,23 +202,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 class HomeContent extends StatelessWidget {
   final bool isDarkMode;
   final Function(bool) toggleTheme;
-  final String currentUser;
 
   const HomeContent({
     Key? key,
     required this.isDarkMode,
     required this.toggleTheme,
-    required this.currentUser,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          _buildUserProfileSection(context, currentUser),
+          _buildUserProfileSection(context, user),
           const SizedBox(height: 20),
           _buildQuickActionsSection(context),
           const SizedBox(height: 20),
@@ -258,8 +228,10 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildUserProfileSection(BuildContext context, String currentUser) {
-    final userDetails = _getUserDetails(currentUser);
+  Widget _buildUserProfileSection(BuildContext context, User? user) {
+    final String displayName = user?.displayName ?? 'No Name';
+    final String email = user?.email ?? 'No Email';
+    final String? photoURL = user?.photoURL;
 
     return Card(
       elevation: 5,
@@ -268,9 +240,11 @@ class HomeContent extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: <Widget>[
-            const CircleAvatar(
+            CircleAvatar(
               radius: 40,
-              backgroundImage: AssetImage('assets/images/profile_picture.png'),
+              backgroundImage: photoURL != null
+                  ? NetworkImage(photoURL)
+                  : const AssetImage('assets/images/profile_picture.png') as ImageProvider,
             ),
             const SizedBox(width: 20),
             Expanded(
@@ -278,13 +252,13 @@ class HomeContent extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    userDetails['name']!,
+                    displayName,
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    userDetails['email']!,
+                    email,
                     style: TextStyle(color: Colors.grey[700]),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -314,25 +288,6 @@ class HomeContent extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Map<String, String> _getUserDetails(String currentUser) {
-    if (currentUser == 'Osama Jaradat') {
-      return {
-        'name': 'Osama Jaradat',
-        'email': 'osojr2017@gmail.com',
-      };
-    } else if (currentUser == 'Moath Hdairis') {
-      return {
-        'name': 'Moath Hdairis',
-        'email': 'moath.hdairis@example.com',
-      };
-    } else {
-      return {
-        'name': 'Unknown User',
-        'email': 'unknown@example.com',
-      };
-    }
   }
 
   Widget _buildQuickActionsSection(BuildContext context) {
