@@ -4,20 +4,29 @@ class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
   final bool isPassword;
+  final int minLines;
+  final int maxLines;
 
-  CustomTextField({required this.controller, required this.hintText, this.isPassword = false});
+  const CustomTextField({
+    Key? key,
+    required this.controller,
+    required this.hintText,
+    this.isPassword = false,
+    this.minLines = 1,
+    this.maxLines = 1,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
       obscureText: isPassword,
+      minLines: minLines,
+      maxLines: maxLines,
       decoration: InputDecoration(
         hintText: hintText,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
     );
   }

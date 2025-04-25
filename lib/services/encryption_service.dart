@@ -68,6 +68,49 @@ class EncryptionService {
     }
   }
 
+  // ---------------- ChaCha20 ----------------
+  static String encryptChaCha20(String message, String key, String nonce) {
+    if (key.length != 32) {
+      throw ArgumentError('ChaCha20 requires a 32-character key.');
+    }
+    if (nonce.length != 8) {
+      throw ArgumentError('ChaCha20 requires exactly 8 characters for nonce.');
+    }
+    final keyBytes = utf8.encode(key);
+    final nonceBytes = utf8.encode(nonce);
+
+    final chacha = ChaCha20Engine()
+      ..init(
+        true,
+        ParametersWithIV(KeyParameter(Uint8List.fromList(keyBytes)), Uint8List.fromList(nonceBytes)),
+      );
+
+    final input = utf8.encode(message);
+    final output = chacha.process(Uint8List.fromList(input));
+    return base64.encode(output);
+  }
+
+  static String decryptChaCha20(String cipherText, String key, String nonce) {
+    if (key.length != 32) {
+      throw ArgumentError('ChaCha20 requires a 32-character key.');
+    }
+    if (nonce.length != 8) {
+      throw ArgumentError('ChaCha20 requires exactly 8 characters for nonce.');
+    }
+    final keyBytes = utf8.encode(key);
+    final nonceBytes = utf8.encode(nonce);
+
+    final chacha = ChaCha20Engine()
+      ..init(
+        false,
+        ParametersWithIV(KeyParameter(Uint8List.fromList(keyBytes)), Uint8List.fromList(nonceBytes)),
+      );
+
+    final input = base64.decode(cipherText);
+    final output = chacha.process(Uint8List.fromList(input));
+    return utf8.decode(output);
+  }
+
   // ---------------- RSA ----------------
   static Encrypter rsaEncrypter({RSAPublicKey? publicKey, RSAPrivateKey? privateKey}) {
     return Encrypter(RSA(
