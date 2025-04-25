@@ -8,7 +8,7 @@ import 'screens/decrypt_image_screen.dart';
 import 'screens/profile_screen.dart'; // Import ProfileScreen
 
 final Map<String, WidgetBuilder> routes = {
-  '/': (context) => HomeScreen(isDarkMode: false, toggleTheme: (value) {}),
+  '/': (context) => HomeScreen(isDarkMode: false, toggleTheme: (value) {}, selectedIndex: null, onTabChanged: (int ) {  },),
   '/settings': (context) => SettingsScreen(isDarkMode: false, toggleTheme: (value) {}),
   '/encrypt-message': (context) => EncryptMessageScreen(),
   '/decrypt-message': (context) => DecryptMessageScreen(prefilledEncryptedText: '',),

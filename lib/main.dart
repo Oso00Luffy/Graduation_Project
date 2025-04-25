@@ -1,21 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
+import 'screens/firebase_options.dart';
+import 'screens/auth_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
-    options: const FirebaseOptions(
-      apiKey: "AIzaSyCB5lcD3jindwA1H4_Bao6ED5ZuMSxN4bo",
-      authDomain: "sccapp-c3165.firebaseapp.com",
-      projectId: "sccapp-c3165",
-      storageBucket: "sccapp-c3165.appspot.com",
-      messagingSenderId: "76800991751",
-      appId: "1:76800991751:web:eb9a35d5e2c3f9c3a380a2",
-      measurementId: "G-CEGQ06WT91",
-    ),
+    options: DefaultFirebaseOptions.currentPlatform,
   );
   runApp(const MyApp());
 }
@@ -29,10 +20,17 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool isDarkMode = false;
+  int selectedIndex = 0;
 
   void toggleTheme(bool value) {
     setState(() {
       isDarkMode = value;
+    });
+  }
+
+  void onTabChanged(int index) {
+    setState(() {
+      selectedIndex = index;
     });
   }
 
@@ -48,7 +46,6 @@ class _MyAppState extends State<MyApp> {
         colorScheme: baseTheme.colorScheme.copyWith(
           primary: aquaBlue,
           secondary: aquaBlue,
-          background: isDarkMode ? const Color(0xFF181A20) : const Color(0xFFE0FBFD),
         ),
         scaffoldBackgroundColor: isDarkMode ? const Color(0xFF181A20) : const Color(0xFFE0FBFD),
         appBarTheme: AppBarTheme(
@@ -86,20 +83,11 @@ class _MyAppState extends State<MyApp> {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasData && snapshot.data != null) {
-            return HomeScreen(
-              isDarkMode: isDarkMode,
-              toggleTheme: toggleTheme,
-            );
-          }
-          return LoginScreen();
-        },
+      home: AuthGate(
+        isDarkMode: isDarkMode,
+        toggleTheme: toggleTheme,
+        selectedIndex: selectedIndex,
+        onTabChanged: onTabChanged,
       ),
     );
   }
