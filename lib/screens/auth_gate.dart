@@ -33,7 +33,6 @@ class AuthGate extends StatelessWidget {
             isDarkMode: isDarkMode,
             toggleTheme: toggleTheme,
             selectedIndex: selectedIndex,
-            onTabChanged: onTabChanged,
           );
         } else {
           return LoginScreen();

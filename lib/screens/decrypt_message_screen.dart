@@ -102,10 +102,10 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
           result = EncryptionService.hybridDecrypt(encryptedText, aesKey, chachaKey);
         }
       } else if (_selectedEncryptionType == 'ChaCha20') {
-        if (chachaKey.isEmpty) {
-          result = 'Please enter the ChaCha20 key (32 chars).';
-        } else if (chachaKey.length != 32) {
-          result = 'ChaCha20 requires a 32-character key.';
+        if (chachaKey.isEmpty || nonce.isEmpty) {
+          result = 'Please enter both the ChaCha20 key (32 chars) and nonce (8 chars).';
+        } else if (chachaKey.length != 32 || nonce.length != 8) {
+          result = 'ChaCha20 requires a 32-character key and an 8-character nonce.';
         } else {
           try {
             result = EncryptionService.decryptChaCha20(encryptedText, chachaKey, nonce);
@@ -267,6 +267,14 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
                         minLines: 1,
                         maxLines: 1,
                       ),
+                      const SizedBox(height: 8),
+                      CustomTextField(
+                        controller: _nonceController,
+                        hintText: 'Nonce (8 chars)',
+                        isPassword: false,
+                        minLines: 1,
+                        maxLines: 1,
+                      ),
                     ],
                     if (isHybrid) ...[
                       const SizedBox(height: 16),
@@ -286,7 +294,7 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
                         maxLines: 1,
                       ),
                     ],
-                    if (isRSA || isHybrid) ...[
+                    if (isRSA) ...[
                       const SizedBox(height: 16),
                       Row(
                         children: [

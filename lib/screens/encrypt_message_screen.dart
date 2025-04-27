@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/encryption_service.dart';
+import '../services/recent_keys_service.dart';
 import '../widgets/custom_text_field.dart';
 import 'package:pointycastle/asymmetric/api.dart';
 import 'package:basic_utils/basic_utils.dart';
@@ -126,6 +127,14 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
           result = 'Please enter the AES key.';
         } else {
           result = EncryptionService.encryptAES(message, aesKey);
+          // --- LOG to Firestore ---
+          await RecentKeysService.addKey(
+            key: aesKey,
+            type: "AES",
+            label: "Encrypted message",
+            message: message,
+            encryptedMessage: result,
+          );
         }
       } else if (_selectedEncryptionType == 'RSA') {
         if (publicKeyPem.isEmpty) {
@@ -141,6 +150,14 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
             result = 'Invalid public key format.';
           } else {
             result = EncryptionService.encryptRSA(message, publicKey);
+            // --- LOG to Firestore ---
+            await RecentKeysService.addKey(
+              key: publicKeyPem,
+              type: "RSA",
+              label: "Encrypted message",
+              message: message,
+              encryptedMessage: result,
+            );
           }
         }
       } else if (_selectedEncryptionType == 'Hybrid') {
@@ -148,6 +165,21 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
           result = 'Please enter both AES and ChaCha20 keys for Hybrid encryption.';
         } else {
           result = EncryptionService.hybridEncrypt(message, aesKey, chaChaKey);
+          // --- LOG to Firestore ---
+          await RecentKeysService.addKey(
+            key: aesKey,
+            type: "AES",
+            label: "Hybrid Encrypted message (AES)",
+            message: message,
+            encryptedMessage: result,
+          );
+          await RecentKeysService.addKey(
+            key: chaChaKey,
+            type: "ChaCha20",
+            label: "Hybrid Encrypted message (ChaCha20)",
+            message: message,
+            encryptedMessage: result,
+          );
         }
       } else if (_selectedEncryptionType == 'ChaCha20') {
         if (chaChaKey.isEmpty || nonce.isEmpty) {
@@ -157,6 +189,14 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
         } else {
           try {
             result = EncryptionService.encryptChaCha20(message, chaChaKey, nonceBase64: nonce);
+            // --- LOG to Firestore ---
+            await RecentKeysService.addKey(
+              key: chaChaKey,
+              type: "ChaCha20",
+              label: "Encrypted message",
+              message: message,
+              encryptedMessage: result,
+            );
           } catch (e) {
             result = 'ChaCha20 encryption failed: $e';
           }

@@ -1,5 +1,3 @@
-library home_screen;
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'encrypt_message_screen.dart';
@@ -11,34 +9,41 @@ import 'secure_chat_screen.dart';
 import 'settings_screen.dart';
 import 'profile_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final bool isDarkMode;
   final Function(bool) toggleTheme;
   final int selectedIndex;
-  final Function(int) onTabChanged;
 
   const HomeScreen({
     Key? key,
     required this.isDarkMode,
     required this.toggleTheme,
-    required this.selectedIndex,
-    required this.onTabChanged,
+    this.selectedIndex = 0,
   }) : super(key: key);
 
-  List<Widget> get _widgetOptions => <Widget>[
-    HomeContent(
-      isDarkMode: isDarkMode,
-      toggleTheme: toggleTheme,
-    ),
-    SettingsScreen(
-      isDarkMode: isDarkMode,
-      toggleTheme: toggleTheme,
-    ),
-    ProfileScreen(),
-    NotificationsScreen(),
-    FileSenderScreen(),
-    SecureChatScreen(),
-  ];
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late int selectedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedIndex = widget.selectedIndex;
+  }
+
+  void _onTabChanged(int index) {
+    setState(() {
+      selectedIndex = index;
+    });
+  }
+
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushReplacementNamed(context, '/');
+  }
 
   void _showNotificationsPopup(BuildContext context) {
     showDialog(
@@ -61,7 +66,7 @@ class HomeScreen extends StatelessWidget {
               child: const Text('View More'),
               onPressed: () {
                 Navigator.of(context).pop();
-                onTabChanged(3);
+                _onTabChanged(3);
               },
             ),
             TextButton(
@@ -76,9 +81,20 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _logout() async {
-    await FirebaseAuth.instance.signOut();
-  }
+  List<Widget> get _widgetOptions => <Widget>[
+    HomeContent(
+      isDarkMode: widget.isDarkMode,
+      toggleTheme: widget.toggleTheme,
+    ),
+    SettingsScreen(
+      isDarkMode: widget.isDarkMode,
+      toggleTheme: widget.toggleTheme,
+    ),
+    ProfileScreen(),
+    NotificationsScreen(),
+    FileSenderScreen(),
+    SecureChatScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +113,7 @@ class HomeScreen extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => onTabChanged(1),
+            onPressed: () => _onTabChanged(1),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -131,7 +147,7 @@ class HomeScreen extends StatelessWidget {
               title: const Text('Home'),
               onTap: () {
                 Navigator.pop(context);
-                onTabChanged(0);
+                _onTabChanged(0);
               },
             ),
             ListTile(
@@ -139,7 +155,7 @@ class HomeScreen extends StatelessWidget {
               title: const Text('Settings'),
               onTap: () {
                 Navigator.pop(context);
-                onTabChanged(1);
+                _onTabChanged(1);
               },
             ),
             ListTile(
@@ -147,7 +163,7 @@ class HomeScreen extends StatelessWidget {
               title: const Text('Profile'),
               onTap: () {
                 Navigator.pop(context);
-                onTabChanged(2);
+                _onTabChanged(2);
               },
             ),
             const Divider(),
@@ -196,7 +212,7 @@ class HomeScreen extends StatelessWidget {
         currentIndex: selectedIndex,
         selectedItemColor: theme.colorScheme.primary,
         unselectedItemColor: Colors.grey,
-        onTap: onTabChanged,
+        onTap: _onTabChanged,
         showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
       ),
@@ -436,7 +452,6 @@ class HomeContent extends StatelessWidget {
   }
 
   List<Map<String, String>> _fetchRecentActivities() {
-    // Mock data - replace with actual data fetching logic
     return [
       {'description': 'Encrypted a message', 'timeAgo': '2 hours ago'},
       {'description': 'Decrypted an image', 'timeAgo': '4 hours ago'},
