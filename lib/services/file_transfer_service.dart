@@ -8,7 +8,7 @@ class FileTransferService {
   final String secretKey = 'your-secret-key'; // Replace with your secret key
 
   /// Uploads a file to IDrive e2 and returns the hosted URL.
-  Future<String> uploadFile(String filePath) async {
+  Future<String> uploadFile(String filePath, Uri parse) async {
     final file = File(filePath);
 
     if (!file.existsSync()) {

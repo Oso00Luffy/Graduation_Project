@@ -5,14 +5,24 @@ import 'screens/encrypt_message_screen.dart';
 import 'screens/decrypt_message_screen.dart';
 import 'screens/encrypt_image_screen.dart';
 import 'screens/decrypt_image_screen.dart';
-import 'screens/profile_screen.dart'; // Import ProfileScreen
+import 'screens/profile_screen.dart';
 
 final Map<String, WidgetBuilder> routes = {
-  '/': (context) => HomeScreen(isDarkMode: false, toggleTheme: (value) {}, selectedIndex: null, onTabChanged: (int ) {  },),
-  '/settings': (context) => SettingsScreen(isDarkMode: false, toggleTheme: (value) {}),
+  '/': (context) => HomeScreen(
+    isDarkMode: false,
+    toggleTheme: (value) {},
+    selectedIndex: 0, // Not null, as required by your HomeScreen.
+    onTabChanged: (int i) {},
+  ),
+  '/settings': (context) => SettingsScreen(
+    isDarkMode: false,
+    toggleTheme: (value) {},
+  ),
   '/encrypt-message': (context) => EncryptMessageScreen(),
-  '/decrypt-message': (context) => DecryptMessageScreen(prefilledEncryptedText: '',),
+  '/decrypt-message': (context) => DecryptMessageScreen(
+    prefilledEncryptedText: '',
+  ),
   '/encrypt-image': (context) => EncryptImageScreen(),
   '/decrypt-image': (context) => DecryptImageScreen(),
-  '/profile': (context) => ProfileScreen(), // Add ProfileScreen route
+  '/profile': (context) => ProfileScreen(),
 };
