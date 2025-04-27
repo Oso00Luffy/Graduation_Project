@@ -6,8 +6,16 @@ import 'login_screen.dart';
 class AuthGate extends StatelessWidget {
   final bool isDarkMode;
   final Function(bool) toggleTheme;
+  final int selectedIndex;
+  final Function(int) onTabChanged;
 
-  const AuthGate({required this.isDarkMode, required this.toggleTheme, Key? key}) : super(key: key);
+  const AuthGate({
+    required this.isDarkMode,
+    required this.toggleTheme,
+    required this.selectedIndex,
+    required this.onTabChanged,
+    Key? key,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -15,15 +23,18 @@ class AuthGate extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
+          // Spinner ONLY on initial app load or sign in/out
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
         if (snapshot.hasData) {
-          // User is signed in
-          return HomeScreen(isDarkMode: isDarkMode, toggleTheme: toggleTheme);
+          return HomeScreen(
+            isDarkMode: isDarkMode,
+            toggleTheme: toggleTheme,
+            selectedIndex: selectedIndex,
+          );
         } else {
-          // Not signed in
           return LoginScreen();
         }
       },

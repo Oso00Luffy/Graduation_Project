@@ -85,7 +85,7 @@ class EncryptionService {
     return jsonEncode(result);
   }
 
-  static String decryptChaCha20(String jsonStr, String key) {
+  static String decryptChaCha20(String jsonStr, String key, String nonce) {
     if (key.length != 32) {
       throw ArgumentError('ChaCha20 Key must be exactly 32 characters long.');
     }
@@ -109,7 +109,7 @@ class EncryptionService {
   }
 
   static String hybridDecrypt(String data, String aesKey, String chaChaKey) {
-    final decryptedChaCha = decryptChaCha20(data, chaChaKey);
+    final decryptedChaCha = decryptChaCha20(data, chaChaKey, aesKey);
     return decryptAES(decryptedChaCha, aesKey);
   }
 
