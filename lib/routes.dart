@@ -12,6 +12,7 @@ final Map<String, WidgetBuilder> routes = {
     isDarkMode: false,
     toggleTheme: (value) {},
     selectedIndex: 0, // Not null, as required by your HomeScreen.
+    onTabChanged: (int i) {},
   ),
   '/settings': (context) => SettingsScreen(
     isDarkMode: false,

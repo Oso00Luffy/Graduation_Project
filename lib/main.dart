@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'routes.dart'; // <<== THIS IMPORTS YOUR ROUTES MAP
 import 'screens/firebase_options.dart';
 import 'screens/auth_gate.dart';
-import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
