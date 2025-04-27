@@ -2,8 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'encrypt_message_screen.dart';
 import 'decrypt_message_screen.dart';
-import 'encrypt_image_screen.dart';
-import 'decrypt_image_screen.dart';
 import 'file_sender_screen.dart';
 import 'secure_chat_screen.dart';
 import 'settings_screen.dart';
@@ -312,30 +310,18 @@ class HomeContent extends StatelessWidget {
                     context,
                     Icons.lock,
                     'Encrypt Message',
-                    const EncryptMessageScreen(),
+                     EncryptionUI(),
                   ),
                   const SizedBox(width: 10),
                   _buildQuickActionButton(
                     context,
                     Icons.lock_open,
                     'Decrypt Message',
-                    const DecryptMessageScreen(),
+                    DecryptionUI(),
                   ),
 
-                  const SizedBox(width: 10),
-                  _buildQuickActionButton(
-                    context,
-                    Icons.image,
-                    'Encrypt Image',
-                    EncryptImageScreen(),
-                  ),
-                  const SizedBox(width: 10),
-                  _buildQuickActionButton(
-                    context,
-                    Icons.image_search,
-                    'Decrypt Image',
-                    DecryptImageScreen(),
-                  ),
+
+
                   const SizedBox(width: 10),
                   _buildQuickActionButton(
                     context,

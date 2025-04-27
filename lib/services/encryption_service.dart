@@ -1,19 +1,22 @@
 import 'dart:convert';
-import 'dart:math';
 import 'dart:typed_data';
-
-import 'package:encrypt/encrypt.dart';
+import 'dart:math';
+import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:pointycastle/export.dart' as pc;
-import 'package:pointycastle/asymmetric/api.dart';
-import 'package:pointycastle/random/fortuna_random.dart';
-import 'package:ecies/ecies.dart' as ecies;
+import 'package:basic_utils/basic_utils.dart';
 
 class EncryptionService {
-  // ---------------- AES ----------------
-  static String encryptAES(String message, String key) {
-    final aesKey = Key.fromUtf8(key.padRight(32, ' '));
-    final iv = IV.fromSecureRandom(16);
-    final encrypter = Encrypter(AES(aesKey));
+  // ---------------- AES Encryption ----------------
+  static String encryptAES(String message, String key, {String? ivBase64}) {
+    if (key.length != 32) {
+      throw ArgumentError('AES Key must be exactly 32 characters long.');
+    }
+
+    final aesKey = encrypt.Key(Uint8List.fromList(utf8.encode(key)));
+    final iv = ivBase64 != null
+        ? encrypt.IV.fromBase64(ivBase64)
+        : encrypt.IV.fromSecureRandom(16);
+    final encrypter = encrypt.Encrypter(encrypt.AES(aesKey));
     final encrypted = encrypter.encrypt(message, iv: iv);
 
     final result = {
@@ -23,90 +26,173 @@ class EncryptionService {
     return base64.encode(utf8.encode(jsonEncode(result)));
   }
 
-  static String decryptAES(String encryptedMessage, String key) {
-    try {
-      final decoded = utf8.decode(base64.decode(encryptedMessage));
-      final data = jsonDecode(decoded);
-      final iv = IV.fromBase64(data['iv']);
-      final encryptedData = data['data'];
-
-      final aesKey = Key.fromUtf8(key.padRight(32, ' '));
-      final encrypter = Encrypter(AES(aesKey));
-      return encrypter.decrypt64(encryptedData, iv: iv);
-    } catch (e) {
-      return 'AES Decryption failed: ${e.toString()}';
+  static String decryptAES(String base64Data, String key) {
+    if (key.length != 32) {
+      throw ArgumentError('AES Key must be exactly 32 characters long.');
     }
+
+    final aesKey = encrypt.Key(Uint8List.fromList(utf8.encode(key)));
+    final decoded = jsonDecode(utf8.decode(base64.decode(base64Data)));
+    final iv = encrypt.IV.fromBase64(decoded['iv']);
+    final encryptedData = encrypt.Encrypted.fromBase64(decoded['data']);
+
+    final encrypter = encrypt.Encrypter(encrypt.AES(aesKey));
+    return encrypter.decrypt(encryptedData, iv: iv);
   }
 
-  // ---------------- RSA ----------------
-  static String encryptRSA(String message, RSAPublicKey publicKey) {
-    final encrypter = Encrypter(RSA(publicKey: publicKey));
-    return encrypter.encrypt(message).base64;
-  }
-
-  static String decryptRSA(String encryptedMessage, RSAPrivateKey privateKey) {
-    try {
-      final encrypter = Encrypter(RSA(privateKey: privateKey));
-      return encrypter.decrypt64(encryptedMessage);
-    } catch (e) {
-      return 'RSA Decryption failed: ${e.toString()}';
-    }
-  }
-
-  // ---------------- ChaCha20 ----------------
-  static String encryptChaCha20(String message, String key) {
-    final keyBytes = Uint8List.fromList(utf8.encode(key.padRight(32, ' ')));
-    final nonce = IV.fromSecureRandom(12);
-    final encrypter = Encrypter(ChaCha20(Key(keyBytes), nonce));
-    final encrypted = encrypter.encrypt(message);
-
-    final result = {
-      'nonce': nonce.base64,
-      'data': encrypted.base64,
-    };
-    return base64.encode(utf8.encode(jsonEncode(result)));
-  }
-
-  static String decryptChaCha20(String encryptedMessage, String key) {
-    try {
-      final decoded = utf8.decode(base64.decode(encryptedMessage));
-      final data = jsonDecode(decoded);
-      final nonce = IV.fromBase64(data['nonce']);
-      final encryptedData = data['data'];
-
-      final keyBytes = Uint8List.fromList(utf8.encode(key.padRight(32, ' ')));
-      final encrypter = Encrypter(ChaCha20(Key(keyBytes), nonce));
-      return encrypter.decrypt64(encryptedData);
-    } catch (e) {
-      return 'ChaCha20 Decryption failed: ${e.toString()}';
-    }
-  }
-
-  // ---------------- ECC (ECIES) ----------------
-  static Future<String> encryptECC(String message, String publicKeyHex) async {
-    final messageBytes = utf8.encode(message);
-    final encrypted = await ecies.encrypt(publicKeyHex, messageBytes);
+  // ---------------- RSA Encryption ----------------
+  static String encryptRSA(String message, pc.RSAPublicKey publicKey) {
+    final cipher = pc.RSAEngine()
+      ..init(true, pc.PublicKeyParameter<pc.RSAPublicKey>(publicKey));
+    final input = Uint8List.fromList(utf8.encode(message));
+    final encrypted = cipher.process(input);
     return base64.encode(encrypted);
   }
 
-  static Future<String> decryptECC(String encryptedMessage, String privateKeyHex) async {
-    try {
-      final encryptedBytes = base64.decode(encryptedMessage);
-      final decrypted = await ecies.decrypt(privateKeyHex, encryptedBytes);
-      return utf8.decode(decrypted);
-    } catch (e) {
-      return 'ECC Decryption failed: ${e.toString()}';
-    }
+  static String decryptRSA(String base64Data, pc.RSAPrivateKey privateKey) {
+    final cipher = pc.RSAEngine()
+      ..init(false, pc.PrivateKeyParameter<pc.RSAPrivateKey>(privateKey));
+    final input = base64.decode(base64Data);
+    final decrypted = cipher.process(input);
+    return utf8.decode(decrypted);
   }
 
-  // ---------------- Hybrid (AES + ChaCha20) ----------------
+  // ---------------- ChaCha20 Encryption ----------------
+  static String encryptChaCha20(String message, String key, {String? nonceBase64}) {
+    if (key.length != 32) {
+      throw ArgumentError('ChaCha20 Key must be exactly 32 characters long.');
+    }
+
+    final keyBytes = Uint8List.fromList(utf8.encode(key));
+    final nonce = nonceBase64 != null
+        ? base64.decode(nonceBase64)
+        : _generateSecureRandomBytes(8);
+
+    if (nonce.length != 8) {
+      throw ArgumentError('Nonce must be exactly 8 bytes long.');
+    }
+
+    final cipher = pc.ChaCha20Engine()
+      ..init(true, pc.ParametersWithIV(pc.KeyParameter(keyBytes), nonce));
+
+    final input = Uint8List.fromList(utf8.encode(message));
+    final encryptedBytes = cipher.process(input);
+
+    final result = {
+      'nonce': base64.encode(nonce),
+      'data': base64.encode(encryptedBytes),
+    };
+    return jsonEncode(result);
+  }
+
+  static String decryptChaCha20(String jsonStr, String key) {
+    if (key.length != 32) {
+      throw ArgumentError('ChaCha20 Key must be exactly 32 characters long.');
+    }
+
+    final keyBytes = Uint8List.fromList(utf8.encode(key));
+    final decoded = jsonDecode(jsonStr);
+    final nonce = base64.decode(decoded['nonce']);
+    final encryptedData = base64.decode(decoded['data']);
+
+    final cipher = pc.ChaCha20Engine()
+      ..init(false, pc.ParametersWithIV(pc.KeyParameter(keyBytes), nonce));
+
+    final decryptedBytes = cipher.process(encryptedData);
+    return utf8.decode(decryptedBytes);
+  }
+
+  // ---------------- Hybrid Encryption ----------------
   static String hybridEncrypt(String message, String aesKey, String chaChaKey) {
     final aesEncrypted = encryptAES(message, aesKey);
     return encryptChaCha20(aesEncrypted, chaChaKey);
   }
 
-  static String hybridDecrypt(String encryptedMessage, String aesKey, String chaChaKey) {
-    final decryptedChaCha = decryptChaCha20(encryptedMessage, chaChaKey);
+  static String hybridDecrypt(String data, String aesKey, String chaChaKey) {
+    final decryptedChaCha = decryptChaCha20(data, chaChaKey);
     return decryptAES(decryptedChaCha, aesKey);
+  }
+
+  // ---------------- Key Generation ----------------
+  static String generateAESKey() {
+    final keyBytes = _generateSecureRandomBytes(32); // 32 bytes = 256 bits
+    return _formatKey(base64.encode(keyBytes), 32); // Ensure key is exactly 32 characters
+  }
+
+  static Map<String, String> generateChaCha20Key() {
+    final keyBytes = _generateSecureRandomBytes(32); // 32 bytes = 256 bits
+    final nonceBytes = _generateSecureRandomBytes(8); // Nonce is 8 bytes
+    return {
+      'key': _formatKey(base64.encode(keyBytes), 32), // Ensure key is exactly 32 characters
+      'nonce': base64.encode(nonceBytes),
+    };
+  }
+
+  static Map<String, String> generateHybridKeys() {
+    final aesKey = generateAESKey();
+    final chaChaKeyData = generateChaCha20Key();
+    return {
+      'aesKey': aesKey,
+      'chaChaKey': chaChaKeyData['key']!,
+      'chaChaNonce': chaChaKeyData['nonce']!,
+    };
+  }
+
+  static Future<pc.AsymmetricKeyPair<pc.RSAPublicKey, pc.RSAPrivateKey>> generateRSAKeyPair({int bitLength = 2048}) async {
+    final secureRandom = _getSecureRandom();
+
+    final keyGen = pc.RSAKeyGenerator()
+      ..init(pc.ParametersWithRandom(
+        pc.RSAKeyGeneratorParameters(BigInt.parse('65537'), bitLength, 64),
+        secureRandom,
+      ));
+
+    final pair = keyGen.generateKeyPair();
+
+    final publicKey = pair.publicKey as pc.RSAPublicKey;
+    final privateKey = pair.privateKey as pc.RSAPrivateKey;
+
+    return pc.AsymmetricKeyPair<pc.RSAPublicKey, pc.RSAPrivateKey>(publicKey, privateKey);
+  }
+
+  // ---------------- Parse & Encode RSA Keys ----------------
+  static pc.RSAPublicKey parsePublicKeyFromPem(String pem) {
+    return CryptoUtils.rsaPublicKeyFromPem(pem);
+  }
+
+  static pc.RSAPrivateKey parsePrivateKeyFromPem(String pem) {
+    return CryptoUtils.rsaPrivateKeyFromPem(pem);
+  }
+
+  static String encodePublicKeyToPem(pc.RSAPublicKey publicKey) {
+    return CryptoUtils.encodeRSAPublicKeyToPemPkcs1(publicKey);
+  }
+
+  static String encodePrivateKeyToPem(pc.RSAPrivateKey privateKey) {
+    return CryptoUtils.encodeRSAPrivateKeyToPemPkcs1(privateKey);
+  }
+
+  // ---------------- Utility ----------------
+  static pc.SecureRandom _getSecureRandom() {
+    final secureRandom = pc.FortunaRandom();
+    final random = Random.secure();
+    final seeds = List<int>.generate(32, (_) => random.nextInt(256));
+    secureRandom.seed(pc.KeyParameter(Uint8List.fromList(seeds)));
+    return secureRandom;
+  }
+
+  static Uint8List _generateSecureRandomBytes(int length) {
+    final random = Random.secure();
+    return Uint8List.fromList(List<int>.generate(length, (_) => random.nextInt(256)));
+  }
+
+  static String _formatKey(String key, int length) {
+    if (key.length == length) {
+      return key;
+    } else if (key.length > length) {
+      return key.substring(0, length);
+    } else {
+      return key.padRight(length, '0'); // Pad with '0' to ensure the length is exactly 32
+    }
   }
 }
