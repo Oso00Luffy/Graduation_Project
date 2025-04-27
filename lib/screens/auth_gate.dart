@@ -14,8 +14,8 @@ class AuthGate extends StatelessWidget {
     required this.toggleTheme,
     required this.selectedIndex,
     required this.onTabChanged,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

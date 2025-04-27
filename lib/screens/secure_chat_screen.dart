@@ -4,6 +4,8 @@ import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart'; // Ensure this import is added
 
 class SecureChatScreen extends StatefulWidget {
+  const SecureChatScreen({super.key});
+
   @override
   _SecureChatScreenState createState() => _SecureChatScreenState();
 }

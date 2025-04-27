@@ -1,10 +1,11 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart'; // For compute function
 import '../services/image_encryption_service.dart';
 
 class DecryptImageScreen extends StatefulWidget {
+  const DecryptImageScreen({super.key});
+
   @override
   _DecryptImageScreenState createState() => _DecryptImageScreenState();
 }

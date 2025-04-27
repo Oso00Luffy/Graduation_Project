@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'routes.dart'; // <<== THIS IMPORTS YOUR ROUTES MAP
 import 'screens/firebase_options.dart';
 import 'screens/auth_gate.dart';
 
@@ -13,7 +12,7 @@ void main() async {
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -84,10 +83,12 @@ class _MyAppState extends State<MyApp> {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      // <<<<< USE YOUR ROUTES MAP HERE!
-      routes: routes,
-      initialRoute: '/', // Optional: sets the starting route
-      onGenerateRoute: null, // You can remove this if you aren't using it
+      home: AuthGate(
+        isDarkMode: isDarkMode,
+        toggleTheme: toggleTheme,
+        selectedIndex: selectedIndex,
+        onTabChanged: onTabChanged,
+      ),
     );
   }
 }

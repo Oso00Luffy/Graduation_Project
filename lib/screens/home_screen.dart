@@ -18,12 +18,12 @@ class HomeScreen extends StatelessWidget {
   final Function(int) onTabChanged;
 
   const HomeScreen({
-    Key? key,
+    super.key,
     required this.isDarkMode,
     required this.toggleTheme,
     required this.selectedIndex,
     required this.onTabChanged,
-  }) : super(key: key);
+  });
 
   List<Widget> get _widgetOptions => <Widget>[
     HomeContent(
@@ -209,10 +209,10 @@ class HomeContent extends StatelessWidget {
   final Function(bool) toggleTheme;
 
   const HomeContent({
-    Key? key,
+    super.key,
     required this.isDarkMode,
     required this.toggleTheme,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -428,7 +428,7 @@ class HomeContent extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             ...activities.map((activity) =>
-                _buildActivityItem(theme, activity['description']!, activity['timeAgo']!)).toList(),
+                _buildActivityItem(theme, activity['description']!, activity['timeAgo']!)),
           ],
         ),
       ),
@@ -454,6 +454,8 @@ class HomeContent extends StatelessWidget {
 }
 
 class NotificationsScreen extends StatelessWidget {
+  const NotificationsScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

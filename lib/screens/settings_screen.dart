@@ -4,7 +4,7 @@ class SettingsScreen extends StatefulWidget {
   final bool isDarkMode;
   final Function(bool) toggleTheme;
 
-  const SettingsScreen({required this.isDarkMode, required this.toggleTheme});
+  const SettingsScreen({super.key, required this.isDarkMode, required this.toggleTheme});
 
   @override
   _SettingsScreenState createState() => _SettingsScreenState();

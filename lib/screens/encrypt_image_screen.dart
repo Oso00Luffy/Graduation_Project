@@ -1,11 +1,11 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart'; // For compute function
 import 'package:image/image.dart' as img; // For resizing images
-import '../services/image_encryption_service.dart';
 
 class EncryptImageScreen extends StatefulWidget {
+  const EncryptImageScreen({super.key});
+
   @override
   _EncryptImageScreenState createState() => _EncryptImageScreenState();
 }

@@ -4,6 +4,8 @@ import '../services/file_transfer_service.dart';
 import '../widgets/custom_button.dart';
 
 class FileSenderScreen extends StatefulWidget {
+  const FileSenderScreen({super.key});
+
   @override
   _FileSenderScreenState createState() => _FileSenderScreenState();
 }
