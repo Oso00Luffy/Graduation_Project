@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/encryption_service.dart';
 import '../widgets/custom_text_field.dart';
+import 'package:pointycastle/asymmetric/api.dart';
 import 'package:basic_utils/basic_utils.dart';
 
 class DecryptMessageScreen extends StatefulWidget {
@@ -10,11 +11,11 @@ class DecryptMessageScreen extends StatefulWidget {
   final String? generatedPrivateKeyPem;
 
   const DecryptMessageScreen({
-    super.key,
+    Key? key,
     required this.prefilledEncryptedText,
     this.initialEncryptionType,
     this.generatedPrivateKeyPem,
-  });
+  }) : super(key: key);
 
   @override
   State<DecryptMessageScreen> createState() => _DecryptMessageScreenState();

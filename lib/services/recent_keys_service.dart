@@ -6,8 +6,6 @@ class RecentKeysService {
     required String key,
     required String type,
     String? label,
-    String? message,
-    String? encryptedMessage,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('No user logged in');
@@ -22,8 +20,6 @@ class RecentKeysService {
       'key': key,
       'type': type,
       'label': label ?? '',
-      'message': message ?? '',
-      'encrypted_message': encryptedMessage ?? '',
       'created_at': FieldValue.serverTimestamp(),
     });
   }

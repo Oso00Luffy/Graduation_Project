@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/profile_keys_section.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
-
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -29,7 +28,7 @@ class ProfileScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,7 +60,15 @@ class ProfileScreen extends StatelessWidget {
               style: TextStyle(fontSize: 16),
             ),
             SizedBox(height: 20),
-            // Add more user info as needed
+            Text(
+              'Recent Keys:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(
+              height: 200, // Adjust as needed for your UI
+              child: ProfileKeysSection(),
+            ),
+            // You can add more sections here (e.g., recent activities, settings, etc.)
           ],
         ),
       ),

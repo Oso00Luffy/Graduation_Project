@@ -10,12 +10,12 @@ class AuthGate extends StatelessWidget {
   final Function(int) onTabChanged;
 
   const AuthGate({
+    Key? key,
     required this.isDarkMode,
     required this.toggleTheme,
     required this.selectedIndex,
     required this.onTabChanged,
-    super.key,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +23,6 @@ class AuthGate extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          // Spinner ONLY on initial app load or sign in/out
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
@@ -35,9 +34,8 @@ class AuthGate extends StatelessWidget {
             selectedIndex: selectedIndex,
             onTabChanged: onTabChanged,
           );
-        } else {
-          return LoginScreen();
         }
+        return const LoginScreen();
       },
     );
   }

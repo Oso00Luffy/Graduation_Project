@@ -5,7 +5,7 @@ class ShowMoreText extends StatefulWidget {
   final String text;
   final int maxLines;
 
-  const ShowMoreText({super.key, required this.text, this.maxLines = 5});
+  ShowMoreText({required this.text, this.maxLines = 5});
 
   @override
   _ShowMoreTextState createState() => _ShowMoreTextState();

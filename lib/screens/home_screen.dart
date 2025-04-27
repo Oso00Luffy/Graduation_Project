@@ -1,80 +1,49 @@
-library home_screen;
-
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'encrypt_message_screen.dart';
 import 'decrypt_message_screen.dart';
 import 'encrypt_image_screen.dart';
 import 'decrypt_image_screen.dart';
-import 'file_sender_screen.dart';
 import 'secure_chat_screen.dart';
 import 'settings_screen.dart';
 import 'profile_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final bool isDarkMode;
   final Function(bool) toggleTheme;
-  final int selectedIndex;
-  final Function(int) onTabChanged;
 
   const HomeScreen({
-    super.key,
+    Key? key,
     required this.isDarkMode,
-    required this.toggleTheme,
-    required this.selectedIndex,
-    required this.onTabChanged,
-  });
+    required this.toggleTheme, required int selectedIndex, required Function(int p1) onTabChanged,
+  }) : super(key: key);
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int selectedIndex = 0;
+
+  void _onTabChanged(int index) {
+    setState(() {
+      selectedIndex = index;
+    });
+  }
 
   List<Widget> get _widgetOptions => <Widget>[
     HomeContent(
-      isDarkMode: isDarkMode,
-      toggleTheme: toggleTheme,
+      isDarkMode: widget.isDarkMode,
+      toggleTheme: widget.toggleTheme,
+      onGotoSettingsTab: () => _onTabChanged(1),
     ),
     SettingsScreen(
-      isDarkMode: isDarkMode,
-      toggleTheme: toggleTheme,
+      isDarkMode: widget.isDarkMode,
+      toggleTheme: widget.toggleTheme,
     ),
     ProfileScreen(),
-    NotificationsScreen(),
-    FileSenderScreen(),
     SecureChatScreen(),
   ];
-
-  void _showNotificationsPopup(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Theme.of(context).cardColor,
-          title: const Text('Notifications'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: const <Widget>[
-                Text('Notification 1'),
-                Text('Notification 2'),
-                Text('Notification 3'),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('View More'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                onTabChanged(3);
-              },
-            ),
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
@@ -92,12 +61,8 @@ class HomeScreen extends StatelessWidget {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () => _showNotificationsPopup(context),
-          ),
-          IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => onTabChanged(1),
+            onPressed: () => _onTabChanged(1),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -131,7 +96,7 @@ class HomeScreen extends StatelessWidget {
               title: const Text('Home'),
               onTap: () {
                 Navigator.pop(context);
-                onTabChanged(0);
+                _onTabChanged(0);
               },
             ),
             ListTile(
@@ -139,7 +104,7 @@ class HomeScreen extends StatelessWidget {
               title: const Text('Settings'),
               onTap: () {
                 Navigator.pop(context);
-                onTabChanged(1);
+                _onTabChanged(1);
               },
             ),
             ListTile(
@@ -147,7 +112,7 @@ class HomeScreen extends StatelessWidget {
               title: const Text('Profile'),
               onTap: () {
                 Navigator.pop(context);
-                onTabChanged(2);
+                _onTabChanged(2);
               },
             ),
             const Divider(),
@@ -181,14 +146,6 @@ class HomeScreen extends StatelessWidget {
             label: 'Profile',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Notifications',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.file_upload),
-            label: 'File Sender',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.chat),
             label: 'Secure Chat',
           ),
@@ -196,7 +153,7 @@ class HomeScreen extends StatelessWidget {
         currentIndex: selectedIndex,
         selectedItemColor: theme.colorScheme.primary,
         unselectedItemColor: Colors.grey,
-        onTap: onTabChanged,
+        onTap: _onTabChanged,
         showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
       ),
@@ -207,12 +164,14 @@ class HomeScreen extends StatelessWidget {
 class HomeContent extends StatelessWidget {
   final bool isDarkMode;
   final Function(bool) toggleTheme;
+  final VoidCallback onGotoSettingsTab;
 
   const HomeContent({
-    super.key,
+    Key? key,
     required this.isDarkMode,
     required this.toggleTheme,
-  });
+    required this.onGotoSettingsTab,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -234,7 +193,8 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildUserProfileSection(BuildContext context, User? user, ThemeData theme) {
+  Widget _buildUserProfileSection(
+      BuildContext context, User? user, ThemeData theme) {
     final String displayName = user?.displayName ?? 'No Name';
     final String email = user?.email ?? 'No Email';
     final String? photoURL = user?.photoURL;
@@ -251,7 +211,8 @@ class HomeContent extends StatelessWidget {
               radius: 40,
               backgroundImage: photoURL != null
                   ? NetworkImage(photoURL)
-                  : const AssetImage('assets/images/profile_picture.png') as ImageProvider,
+                  : const AssetImage('assets/images/profile_picture.png')
+              as ImageProvider,
             ),
             const SizedBox(width: 20),
             Expanded(
@@ -270,14 +231,16 @@ class HomeContent extends StatelessWidget {
                   Text(
                     email,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                      color: theme.textTheme.bodyMedium?.color
+                          ?.withOpacity(0.7),
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 5),
                   Text(
                     'Member since: January 2025',
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.hintColor),
                   ),
                   const SizedBox(height: 5),
                   ElevatedButton(
@@ -288,16 +251,7 @@ class HomeContent extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    onPressed: () {
-                      Navigator.pushNamed(
-                        context,
-                        '/settings',
-                        arguments: {
-                          'isDarkMode': isDarkMode,
-                          'toggleTheme': toggleTheme,
-                        },
-                      );
-                    },
+                    onPressed: onGotoSettingsTab,
                     child: const Text('Settings'),
                   ),
                 ],
@@ -344,7 +298,9 @@ class HomeContent extends StatelessWidget {
                     theme,
                     Icons.lock_open,
                     'Decrypt Message',
-                    DecryptMessageScreen(prefilledEncryptedText: '',),
+                    DecryptMessageScreen(
+                      prefilledEncryptedText: '',
+                    ),
                   ),
                   const SizedBox(width: 10),
                   _buildQuickActionButton(
@@ -366,14 +322,6 @@ class HomeContent extends StatelessWidget {
                   _buildQuickActionButton(
                     context,
                     theme,
-                    Icons.file_upload,
-                    'File Sender',
-                    FileSenderScreen(),
-                  ),
-                  const SizedBox(width: 10),
-                  _buildQuickActionButton(
-                    context,
-                    theme,
                     Icons.chat,
                     'Secure Chat',
                     SecureChatScreen(),
@@ -387,8 +335,8 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActionButton(
-      BuildContext context, ThemeData theme, IconData icon, String label, Widget screen) {
+  Widget _buildQuickActionButton(BuildContext context, ThemeData theme,
+      IconData icon, String label, Widget screen) {
     return Column(
       children: <Widget>[
         FloatingActionButton(
@@ -427,8 +375,10 @@ class HomeContent extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            ...activities.map((activity) =>
-                _buildActivityItem(theme, activity['description']!, activity['timeAgo']!)),
+            ...activities
+                .map((activity) => _buildActivityItem(
+                theme, activity['description']!, activity['timeAgo']!))
+                .toList(),
           ],
         ),
       ),
@@ -444,23 +394,12 @@ class HomeContent extends StatelessWidget {
     ];
   }
 
-  Widget _buildActivityItem(ThemeData theme, String activity, String timeAgo) {
+  Widget _buildActivityItem(
+      ThemeData theme, String activity, String timeAgo) {
     return ListTile(
       leading: Icon(Icons.history, color: theme.colorScheme.primary),
       title: Text(activity, style: theme.textTheme.bodyMedium),
       subtitle: Text(timeAgo, style: theme.textTheme.bodySmall),
-    );
-  }
-}
-
-class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Text('No new notifications', style: theme.textTheme.titleLarge),
     );
   }
 }

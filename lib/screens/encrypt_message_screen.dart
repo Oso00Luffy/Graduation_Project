@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/encryption_service.dart';
 import '../widgets/custom_text_field.dart';
+import 'package:pointycastle/asymmetric/api.dart';
 import 'package:basic_utils/basic_utils.dart';
 
 class EncryptMessageScreen extends StatefulWidget {
@@ -9,10 +10,10 @@ class EncryptMessageScreen extends StatefulWidget {
   final RSAPublicKey? rsaPublicKey;
 
   const EncryptMessageScreen({
-    super.key,
+    Key? key,
     this.initialEncryptionType,
     this.rsaPublicKey,
-  });
+  }) : super(key: key);
 
   @override
   State<EncryptMessageScreen> createState() => _EncryptMessageScreenState();

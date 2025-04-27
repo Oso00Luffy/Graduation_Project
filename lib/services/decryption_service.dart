@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart';
 import 'package:pointycastle/export.dart';
-// لإدخال مفاتيح RSA بشكل صحيح
+import 'package:pointycastle/asymmetric/api.dart'; // لإدخال مفاتيح RSA بشكل صحيح
 
 class DecryptionService {
   // ---------------- AES Decryption ----------------
