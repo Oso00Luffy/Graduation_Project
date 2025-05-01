@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart'; // For clipboard functionality
 import '../widgets/profile_keys_section.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -17,10 +18,10 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Profile'),
+        title: const Text('Profile'),
         actions: [
           IconButton(
-            icon: Icon(Icons.logout),
+            icon: const Icon(Icons.logout),
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               Navigator.pushReplacementNamed(context, '/');
@@ -33,45 +34,72 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
+            // Profile Picture with Upload Button
             Center(
-              child: CircleAvatar(
-                radius: 80,
-                backgroundImage: user.photoURL != null
-                    ? NetworkImage(user.photoURL!)
-                    : AssetImage('assets/images/profile_picture.png') as ImageProvider,
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 80,
+                    backgroundImage: user.photoURL != null
+                        ? NetworkImage(user.photoURL!)
+                        : AssetImage('assets/images/profile_picture.png')
+                    as ImageProvider,
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: IconButton(
+                      icon: const Icon(Icons.camera_alt, size: 28),
+                      onPressed: () async {
+                        // Add logic to upload a new profile picture
+                        await _changeProfilePicture(context);
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 20),
-            Text(
+            const SizedBox(height: 20),
+            // Name
+            const Text(
               'Name:',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             Text(
               user.displayName ?? 'No Name',
-              style: TextStyle(fontSize: 16),
+              style: const TextStyle(fontSize: 16),
             ),
-            SizedBox(height: 20),
-            Text(
+            const SizedBox(height: 20),
+            // Email
+            const Text(
               'Email:',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             Text(
               user.email ?? 'No Email',
-              style: TextStyle(fontSize: 16),
+              style: const TextStyle(fontSize: 16),
             ),
-            SizedBox(height: 20),
-            Text(
+            const SizedBox(height: 20),
+            // Recent Keys Section
+            const Text(
               'Recent Keys:',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             SizedBox(
               height: 200, // Adjust as needed for your UI
-              child: ProfileKeysSection(),
+              child: ProfileKeysSection(), // Updated to include clipboard functionality
             ),
-            // You can add more sections here (e.g., recent activities, settings, etc.)
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _changeProfilePicture(BuildContext context) async {
+    // Logic for uploading a new profile picture
+    // For example, use an image picker and upload to Firebase Storage
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Profile picture upload feature coming soon!')),
     );
   }
 }
