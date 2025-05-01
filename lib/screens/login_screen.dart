@@ -1,6 +1,10 @@
+// File: lib/screens/login_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../main.dart';
+import 'home_screen.dart'; // Make sure this exists
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -13,8 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
-
-  bool _showUsernameField = false; // Show for sign up only
+  bool _showUsernameField = false;
   String _error = '';
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -45,17 +48,18 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
       _error = '';
     });
+
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      // Do not navigate here; the StreamBuilder in main.dart will handle navigation.
     } on FirebaseAuthException catch (e) {
       setState(() => _error = _mapFirebaseAuthError(e.code));
     } catch (e) {
       setState(() => _error = 'Login failed. Please try again.');
     }
+
     setState(() => _isLoading = false);
   }
 
@@ -64,23 +68,39 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
       _error = '';
     });
+
     try {
       if (_usernameController.text.trim().isEmpty) {
         setState(() => _error = 'Please enter a username.');
         _isLoading = false;
         return;
       }
+
       UserCredential cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      await cred.user!.updateDisplayName(_usernameController.text.trim());
-      // Do not navigate here; the StreamBuilder in main.dart will handle navigation.
+
+      await cred.user?.updateDisplayName(_usernameController.text.trim());
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HomeWrapper(
+            isDarkMode: false,
+            toggleTheme: (_) {},
+          ),
+        ),
+      );
+
     } on FirebaseAuthException catch (e) {
       setState(() => _error = _mapFirebaseAuthError(e.code));
     } catch (e) {
       setState(() => _error = 'Registration failed. Please try again.');
     }
+
     setState(() => _isLoading = false);
   }
 
@@ -89,22 +109,38 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
       _error = '';
     });
+
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) {
         setState(() => _isLoading = false);
         return;
       }
+
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
+
       await FirebaseAuth.instance.signInWithCredential(credential);
-      // Do not navigate here; the StreamBuilder in main.dart will handle navigation.
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HomeWrapper(
+            isDarkMode: false,
+            toggleTheme: (_) {},
+          ),
+        ),
+      );
+
     } catch (e) {
       setState(() => _error = 'Google sign-in failed. Please try again.');
     }
+
     setState(() => _isLoading = false);
   }
 
@@ -113,12 +149,26 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
       _error = '';
     });
+
     try {
       await FirebaseAuth.instance.signInAnonymously();
-      // Do not navigate here; the StreamBuilder in main.dart will handle navigation.
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HomeWrapper(
+            isDarkMode: false,
+            toggleTheme: (_) {},
+          ),
+        ),
+      );
+
     } catch (e) {
       setState(() => _error = 'Guest sign-in failed. Please try again.');
     }
+
     setState(() => _isLoading = false);
   }
 
@@ -147,9 +197,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Center(
         child: SingleChildScrollView(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 380,
-            ),
+            constraints: const BoxConstraints(maxWidth: 380),
             child: Card(
               elevation: 10,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -176,21 +224,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 28),
-                    if (_showUsernameField) ...[
-                      _buildTextField(
-                        controller: _usernameController,
-                        hint: 'Username',
-                        icon: Icons.person,
-                        keyboardType: TextInputType.name,
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-                    _buildTextField(
-                      controller: _emailController,
-                      hint: 'Email',
-                      icon: Icons.email,
-                      keyboardType: TextInputType.emailAddress,
-                    ),
+                    if (_showUsernameField)
+                      _buildTextField(controller: _usernameController, hint: 'Username', icon: Icons.person),
+                    if (_showUsernameField) const SizedBox(height: 20),
+                    _buildTextField(controller: _emailController, hint: 'Email', icon: Icons.email),
                     const SizedBox(height: 20),
                     _buildTextField(
                       controller: _passwordController,
@@ -213,11 +250,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         padding: const EdgeInsets.only(bottom: 6),
                         child: Text(
                           _error,
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
+                          style: const TextStyle(color: Colors.red, fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                       ),
                     if (_isLoading)
@@ -245,19 +278,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            _showUsernameField
-                                ? "Already have an account? "
-                                : "Don't have an account? ",
+                            _showUsernameField ? "Already have an account? " : "Don't have an account? ",
                             style: TextStyle(color: Colors.grey[700], fontSize: 15),
                           ),
                           TextButton(
                             onPressed: _toggleSignUp,
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: const Size(50, 30),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              alignment: Alignment.centerLeft,
-                            ),
                             child: Text(
                               _showUsernameField ? "Sign in" : "Sign up",
                               style: TextStyle(
@@ -270,13 +295,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                       Row(
-                        children: [
-                          const Expanded(child: Divider()),
+                        children: const [
+                          Expanded(child: Divider()),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                            child: Text("or", style: TextStyle(color: Colors.grey[600])),
+                            padding: EdgeInsets.symmetric(horizontal: 8.0),
+                            child: Text("or"),
                           ),
-                          const Expanded(child: Divider()),
+                          Expanded(child: Divider()),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -288,11 +313,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             height: 24,
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(4),
-                              child: Image.asset(
-                                'assets/images/google-logo.png',
-                                width: 48,
-                                height: 48,
-                              ),
+                              child: Image.asset('assets/images/google-logo.png'),
                             ),
                           ),
                           label: const Text('Sign in with Google'),
@@ -310,7 +331,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: TextButton.icon(
-                          icon: const Icon(Icons.person_outline),
+                          icon: Icon(Icons.person_outline),
                           label: const Text('Continue as Guest'),
                           onPressed: _signInAsGuest,
                           style: TextButton.styleFrom(

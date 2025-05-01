@@ -11,11 +11,15 @@ import 'profile_screen.dart';
 class HomeScreen extends StatefulWidget {
   final bool isDarkMode;
   final Function(bool) toggleTheme;
+  final int selectedIndex;
+  final Function(int) onTabChanged;
 
   const HomeScreen({
     Key? key,
     required this.isDarkMode,
-    required this.toggleTheme, required int selectedIndex, required Function(int p1) onTabChanged,
+    required this.toggleTheme,
+    required this.selectedIndex,
+    required this.onTabChanged,
   }) : super(key: key);
 
   @override
@@ -31,28 +35,20 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  List<Widget> get _widgetOptions => <Widget>[
-    HomeContent(
-      isDarkMode: widget.isDarkMode,
-      toggleTheme: widget.toggleTheme,
-      onGotoSettingsTab: () => _onTabChanged(1),
-    ),
-    SettingsScreen(
-      isDarkMode: widget.isDarkMode,
-      toggleTheme: widget.toggleTheme,
-    ),
-    ProfileScreen(),
-    SecureChatScreen(),
-  ];
-
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
   }
 
+  List<Widget> get _widgetOptions => <Widget>[
+    HomeContent(onGotoSettingsTab: () => _onTabChanged(1)),
+    SettingsScreen(),
+    ProfileScreen(),
+    SecureChatScreen(),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -78,10 +74,10 @@ class _HomeScreenState extends State<HomeScreen> {
             DrawerHeader(
               decoration: BoxDecoration(color: theme.colorScheme.primary),
               child: Row(
-                children: [
-                  const Icon(Icons.lock, size: 36, color: Colors.white),
-                  const SizedBox(width: 12),
-                  const Text(
+                children: const [
+                  Icon(Icons.lock, size: 36, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text(
                     'Menu',
                     style: TextStyle(
                       color: Colors.white,
@@ -132,23 +128,11 @@ class _HomeScreenState extends State<HomeScreen> {
         children: _widgetOptions,
       ),
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
-            label: 'Secure Chat',
-          ),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Secure Chat'),
         ],
         currentIndex: selectedIndex,
         selectedItemColor: theme.colorScheme.primary,
@@ -162,22 +146,16 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class HomeContent extends StatelessWidget {
-  final bool isDarkMode;
-  final Function(bool) toggleTheme;
   final VoidCallback onGotoSettingsTab;
-
   const HomeContent({
-    Key? key,
-    required this.isDarkMode,
-    required this.toggleTheme,
+    super.key,
     required this.onGotoSettingsTab,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final theme = Theme.of(context);
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -291,6 +269,7 @@ class HomeContent extends StatelessWidget {
                     Icons.lock,
                     'Encrypt Message',
                     EncryptMessageScreen(),
+
                   ),
                   const SizedBox(width: 10),
                   _buildQuickActionButton(
@@ -298,9 +277,8 @@ class HomeContent extends StatelessWidget {
                     theme,
                     Icons.lock_open,
                     'Decrypt Message',
-                    DecryptMessageScreen(
-                      prefilledEncryptedText: '',
-                    ),
+                    DecryptMessageScreen(prefilledEncryptedText: ''),
+                    toggleTheme,
                   ),
                   const SizedBox(width: 10),
                   _buildQuickActionButton(
@@ -309,6 +287,7 @@ class HomeContent extends StatelessWidget {
                     Icons.image,
                     'Encrypt Image',
                     EncryptImageScreen(),
+                    toggleTheme,
                   ),
                   const SizedBox(width: 10),
                   _buildQuickActionButton(
@@ -317,6 +296,7 @@ class HomeContent extends StatelessWidget {
                     Icons.image_search,
                     'Decrypt Image',
                     DecryptImageScreen(),
+                    toggleTheme,
                   ),
                   const SizedBox(width: 10),
                   _buildQuickActionButton(
@@ -325,6 +305,7 @@ class HomeContent extends StatelessWidget {
                     Icons.chat,
                     'Secure Chat',
                     SecureChatScreen(),
+                    toggleTheme,
                   ),
                 ],
               ),
@@ -335,16 +316,25 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActionButton(BuildContext context, ThemeData theme,
-      IconData icon, String label, Widget screen) {
+  Widget _buildQuickActionButton(
+      BuildContext context,
+      ThemeData theme,
+      IconData icon,
+      String label,
+      Widget screen,
+      Function(bool) toggleTheme,
+      ) {
     return Column(
-      children: <Widget>[
+      children: [
         FloatingActionButton(
           heroTag: label,
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => screen),
+              MaterialPageRoute(
+                builder: (_) => screen,
+                settings: RouteSettings(arguments: toggleTheme),
+              ),
             );
           },
           backgroundColor: theme.colorScheme.primary,

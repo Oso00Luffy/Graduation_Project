@@ -1,7 +1,8 @@
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/foundation.dart'; // For compute function
+import 'package:flutter/foundation.dart';
 import '../services/image_encryption_service.dart';
 
 class DecryptImageScreen extends StatefulWidget {
@@ -12,66 +13,72 @@ class DecryptImageScreen extends StatefulWidget {
 class _DecryptImageScreenState extends State<DecryptImageScreen> {
   Uint8List? _encryptedImageBytes;
   Uint8List? _keyImageBytes;
-  final ImagePicker _picker = ImagePicker();
   Uint8List? _decryptedImageBytes;
+  final ImagePicker _picker = ImagePicker();
   String? _errorMessage;
   bool _isDecrypting = false;
 
-  Future<void> _pickEncryptedImage() async {
-    final pickedImage = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedImage != null) {
-      final bytes = await pickedImage.readAsBytes();
-      setState(() {
-        _encryptedImageBytes = bytes;
-        _errorMessage = null;
-      });
-    }
-  }
+  static const int MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
 
-  Future<void> _pickKeyImage() async {
-    final pickedImage = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedImage != null) {
-      final bytes = await pickedImage.readAsBytes();
-      setState(() {
-        _keyImageBytes = bytes;
-        _errorMessage = null;
-      });
+  Future<void> _pickImage(String purpose, Function(Uint8List) onImageSelected) async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      try {
+        final bytes = await pickedFile.readAsBytes();
+
+        if (bytes.length > MAX_IMAGE_SIZE) {
+          setState(() {
+            _errorMessage = '$purpose image is too large. Please pick an image under 5 MB.';
+          });
+          return;
+        }
+
+        setState(() {
+          _errorMessage = null;
+        });
+
+        onImageSelected(bytes);
+      } catch (e) {
+        setState(() {
+          _errorMessage = 'Failed to read $purpose image: $e';
+        });
+      }
     }
   }
 
   Future<void> _decryptImage() async {
-    if (_encryptedImageBytes != null && _keyImageBytes != null) {
-      try {
-        setState(() {
-          _isDecrypting = true;
-        });
-
-        final decryptedBytes = await compute(
-          _performDecryption,
-          DecryptionParams(_encryptedImageBytes!, _keyImageBytes!),
-        );
-
-        setState(() {
-          _decryptedImageBytes = decryptedBytes;
-          _errorMessage = null;
-          _isDecrypting = false;
-        });
-      } catch (e) {
-        setState(() {
-          _errorMessage = 'Decryption failed: $e';
-          _isDecrypting = false;
-        });
-      }
-    } else {
+    if (_encryptedImageBytes == null || _keyImageBytes == null) {
       setState(() {
         _errorMessage = 'Please select both encrypted and key images.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isDecrypting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final decryptedBytes = await compute(
+        _performDecryption,
+        DecryptionParams(_encryptedImageBytes!, _keyImageBytes!),
+      );
+
+      setState(() {
+        _decryptedImageBytes = decryptedBytes;
+        _isDecrypting = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Decryption failed: $e';
+        _isDecrypting = false;
       });
     }
   }
 
   static Uint8List _performDecryption(DecryptionParams params) {
-    // Use the correct method from the ImageEncryptionService
-    return ImageEncryptionService.decryptImageWithImage(
+    return ImageEncryptionService.decryptImageWithKey(
       params.encryptedImageBytes,
       params.keyImageBytes,
     );
@@ -83,70 +90,96 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
       appBar: AppBar(
         title: Text('Decrypt Image'),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Select Encrypted Image:'),
-              _encryptedImageBytes != null
-                  ? SizedBox(
-                height: 200,
-                child: Image.memory(
-                  _encryptedImageBytes!,
-                  fit: BoxFit.contain,
-                ),
-              )
-                  : Text('No encrypted image selected.'),
+              // Encrypted Image Picker
+              Text('Select Encrypted Image', style: TextStyle(fontSize: 16)),
+              SizedBox(height: 8),
+              _buildImagePreview(_encryptedImageBytes),
               ElevatedButton(
-                onPressed: _pickEncryptedImage,
+                onPressed: () => _pickImage('Encrypted', (bytes) {
+                  setState(() => _encryptedImageBytes = bytes);
+                }),
                 child: Text('Pick Encrypted Image'),
               ),
-              SizedBox(height: 16),
-              Text('Select Key Image:'),
-              _keyImageBytes != null
-                  ? SizedBox(
-                height: 200,
-                child: Image.memory(
-                  _keyImageBytes!,
-                  fit: BoxFit.contain,
-                ),
-              )
-                  : Text('No key image selected.'),
+              SizedBox(height: 20),
+
+              // Key Image Picker
+              Text('Select Key Image', style: TextStyle(fontSize: 16)),
+              SizedBox(height: 8),
+              _buildImagePreview(_keyImageBytes),
               ElevatedButton(
-                onPressed: _pickKeyImage,
+                onPressed: () => _pickImage('Key', (bytes) {
+                  setState(() => _keyImageBytes = bytes);
+                }),
                 child: Text('Pick Key Image'),
               ),
-              SizedBox(height: 16),
+
+              SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _isDecrypting ? null : _decryptImage,
                 child: _isDecrypting
-                    ? CircularProgressIndicator(color: Colors.white)
-                    : Text('Decrypt'),
-              ),
-              SizedBox(height: 16),
-              if (_errorMessage != null)
-                Text(
-                  _errorMessage!,
-                  style: TextStyle(color: Colors.red),
-                  textAlign: TextAlign.center,
-                ),
-              if (_decryptedImageBytes != null)
-                Column(
+                    ? Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Decrypted Image:'),
-                    SizedBox(
-                      height: 200,
-                      child: Image.memory(
-                        _decryptedImageBytes!,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(width: 10),
+                    Text('Decrypting...'),
                   ],
+                )
+                    : Text('Decrypt Image'),
+              ),
+
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  child: Text(
+                    _errorMessage!,
+                    style: TextStyle(color: Colors.red, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
+
+              if (_decryptedImageBytes != null) ...[
+                SizedBox(height: 20),
+                Text('Decrypted Image', style: TextStyle(fontSize: 16)),
+                SizedBox(height: 8),
+                Image.memory(
+                  _decryptedImageBytes!,
+                  fit: BoxFit.contain,
+                  filterQuality: ui.FilterQuality.medium,
+                ),
+              ]
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildImagePreview(Uint8List? imageBytes) {
+    if (imageBytes == null) {
+      return Container(
+        height: 200,
+        decoration: BoxDecoration(
+          color: Colors.grey[300],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Center(child: Text('No image selected')),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.memory(
+        imageBytes,
+        height: 200,
+        fit: BoxFit.contain,
+        filterQuality: ui.FilterQuality.medium,
       ),
     );
   }

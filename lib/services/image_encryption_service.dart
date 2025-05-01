@@ -1,118 +1,119 @@
 import 'dart:typed_data';
+import 'dart:math';
 import 'package:image/image.dart' as img;
 
 class ImageEncryptionService {
-  /// Encrypts an image with another image to produce a blurry encrypted image.
-  ///
-  /// [plainImageBytes]: The raw bytes of the plain image.
-  /// [keyImageBytes]: The raw bytes of the key image.
-  ///
-  /// Returns the encrypted image bytes as `Uint8List`.
-  static Uint8List encryptImageWithImage(Uint8List plainImageBytes, Uint8List keyImageBytes) {
-    // Decode the plain and key images
-    final plainImage = img.decodeImage(plainImageBytes);
-    final keyImage = img.decodeImage(keyImageBytes);
-
-    if (plainImage == null || keyImage == null) {
-      throw ArgumentError('Invalid image format');
-    }
-
-    // Resize the key image to match the plain image dimensions
-    final resizedKeyImage = img.copyResize(
-      keyImage,
-      width: plainImage.width,
-      height: plainImage.height,
-    );
-
-    // Create a new image for the encrypted result
-    final encryptedImage = img.Image(
-      width: plainImage.width,
-      height: plainImage.height,
-    );
-
-    // Perform the blending/encryption operation
-    for (int y = 0; y < plainImage.height; y++) {
-      for (int x = 0; x < plainImage.width; x++) {
-        final plainPixel = plainImage.getPixel(x, y);
-        final keyPixel = resizedKeyImage.getPixel(x, y);
-
-        // Get RGB values from both images using the Pixel API
-        final plainR = plainPixel.r;
-        final plainG = plainPixel.g;
-        final plainB = plainPixel.b;
-
-        final keyR = keyPixel.r;
-        final keyG = keyPixel.g;
-        final keyB = keyPixel.b;
-
-        // Blending/Encryption: Add and mod 256
-        final encryptedR = (plainR + keyR) % 256;
-        final encryptedG = (plainG + keyG) % 256;
-        final encryptedB = (plainB + keyB) % 256;
-
-        // Set the encrypted pixel in the new image
-        encryptedImage.setPixelRgb(x, y, encryptedR, encryptedG, encryptedB);
-      }
-    }
-
-    // Encode the encrypted image back to bytes
-    return Uint8List.fromList(img.encodePng(encryptedImage));
+  static Uint8List encryptImageWithKey(Uint8List plainImageBytes, Uint8List keyImageBytes) {
+    var decodedImage = img.decodeImage(plainImageBytes)!;
+    var confusionImage = _applyConfusion(decodedImage, keyImageBytes);
+    var finalImage = _applyDiffusion(confusionImage, keyImageBytes);
+    return Uint8List.fromList(img.encodePng(finalImage));
   }
 
-  /// Decrypts an image encrypted with another image to retrieve the original plain image.
-  ///
-  /// [encryptedImageBytes]: The raw bytes of the encrypted image.
-  /// [keyImageBytes]: The raw bytes of the key image.
-  ///
-  /// Returns the decrypted image bytes as `Uint8List`.
-  static Uint8List decryptImageWithImage(Uint8List encryptedImageBytes, Uint8List keyImageBytes) {
-    // Decode the encrypted and key images
-    final encryptedImage = img.decodeImage(encryptedImageBytes);
-    final keyImage = img.decodeImage(keyImageBytes);
+  static Uint8List decryptImageWithKey(Uint8List encryptedBytes, Uint8List keyImageBytes) {
+    var decodedImage = img.decodeImage(encryptedBytes)!;
+    var deDiffusedImage = _removeDiffusion(decodedImage, keyImageBytes);
+    var originalImage = _removeConfusion(deDiffusedImage, keyImageBytes);
+    return Uint8List.fromList(img.encodePng(originalImage));
+  }
 
-    if (encryptedImage == null || keyImage == null) {
-      throw ArgumentError('Invalid image format');
+  // Confusion Phase
+  static img.Image _applyConfusion(img.Image image, Uint8List key) {
+    final width = image.width;
+    final height = image.height;
+    final totalPixels = width * height;
+
+    final indices = List<int>.generate(totalPixels, (i) => i);
+    final shuffledIndices = _shuffleList(indices, key);
+
+    final tempImage = img.Image(width: width, height: height);
+
+    for (var i = 0; i < totalPixels; i++) {
+      final x1 = i % width;
+      final y1 = i ~/ width;
+      final idx2 = shuffledIndices[i];
+      final x2 = idx2 % width;
+      final y2 = idx2 ~/ width;
+
+      final pixel = image.getPixel(x1, y1);
+      tempImage.setPixel(x2, y2, pixel);
     }
 
-    // Resize the key image to match the encrypted image dimensions
-    final resizedKeyImage = img.copyResize(
-      keyImage,
-      width: encryptedImage.width,
-      height: encryptedImage.height,
-    );
+    return tempImage;
+  }
 
-    // Create a new image for the decrypted result
-    final decryptedImage = img.Image(
-      width: encryptedImage.width,
-      height: encryptedImage.height,
-    );
+  static img.Image _removeConfusion(img.Image image, Uint8List key) {
+    final width = image.width;
+    final height = image.height;
+    final totalPixels = width * height;
 
-    // Perform the reverse blending/decryption operation
-    for (int y = 0; y < encryptedImage.height; y++) {
-      for (int x = 0; x < encryptedImage.width; x++) {
-        final encryptedPixel = encryptedImage.getPixel(x, y);
-        final keyPixel = resizedKeyImage.getPixel(x, y);
+    final indices = List<int>.generate(totalPixels, (i) => i);
+    final shuffledIndices = _shuffleList(indices, key);
 
-        // Get RGB values from both images using the Pixel API
-        final encryptedR = encryptedPixel.r;
-        final encryptedG = encryptedPixel.g;
-        final encryptedB = encryptedPixel.b;
+    final tempImage = img.Image(width: width, height: height);
 
-        final keyR = keyPixel.r;
-        final keyG = keyPixel.g;
-        final keyB = keyPixel.b;
+    for (var i = 0; i < totalPixels; i++) {
+      final idx2 = shuffledIndices[i];
+      final x1 = i % width;
+      final y1 = i ~/ width;
+      final x2 = idx2 % width;
+      final y2 = idx2 ~/ width;
 
-        // Reverse Blending/Decryption: Subtract and mod 256
-        final decryptedR = (encryptedR - keyR + 256) % 256;
-        final decryptedG = (encryptedG - keyG + 256) % 256;
-        final decryptedB = (encryptedB - keyB + 256) % 256;
+      final pixel = image.getPixel(x2, y2);
+      tempImage.setPixel(x1, y1, pixel);
+    }
 
-        // Set the decrypted pixel in the new image
-        decryptedImage.setPixelRgb(x, y, decryptedR, decryptedG, decryptedB);
+    return tempImage;
+  }
+
+  static List<int> _shuffleList(List<int> list, Uint8List key) {
+    assert(key.isNotEmpty, "Key must not be empty");
+    final seed = key.fold<int>(0, (sum, byte) => (sum + byte) % 99999999);
+    final random = Random(seed);
+    final result = List<int>.from(list);
+    for (var i = result.length - 1; i > 0; i--) {
+      final j = random.nextInt(i + 1);
+      final temp = result[i];
+      result[i] = result[j];
+      result[j] = temp;
+    }
+    return result;
+  }
+
+  // Diffusion Phase
+  static img.Image _applyDiffusion(img.Image image, Uint8List key) {
+    final width = image.width;
+    final height = image.height;
+
+    int prev = key[0];
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        final pixel = image.getPixel(x, y);
+        final r = ((pixel.r + prev) % 256).toInt();
+        final g = ((pixel.g + r) % 256).toInt();
+        final b = ((pixel.b + g) % 256).toInt();
+        image.setPixelRgba(x, y, r, g, b, 255); // ✅ 6 positional args
+        prev = b;
       }
     }
+    return image;
+  }
 
-    // Encode the decrypted image back to bytes
-    return Uint8List.fromList(img.encodePng(decryptedImage));
+  static img.Image _removeDiffusion(img.Image image, Uint8List key) {
+    final width = image.width;
+    final height = image.height;
+
+    int prev = key[0];
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        final pixel = image.getPixel(x, y);
+        final b = ((pixel.b - prev + 256) % 256).toInt();
+        final g = ((pixel.g - b + 256) % 256).toInt();
+        final r = ((pixel.r - g + 256) % 256).toInt();
+        image.setPixelRgba(x, y, r, g, b, pixel.a.toInt()); // ✅ 6 positional args
+        prev = pixel.b.toInt();
+      }
+    }
+    return image;
   }
 }

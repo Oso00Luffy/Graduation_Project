@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'screens/firebase_options.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// Screens
+import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 
@@ -35,6 +36,25 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       selectedIndex = index;
     });
+  }
+
+  Future<void> _saveDarkModePreference(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool('dark_mode', value);
+  }
+
+  Future<void> _loadDarkModePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool savedMode = prefs.getBool('dark_mode') ?? false;
+    setState(() {
+      isDarkMode = savedMode;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDarkModePreference();
   }
 
   @override
@@ -134,24 +154,53 @@ class _MyAppState extends State<MyApp> {
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
+
           if (snapshot.hasData) {
-            return HomeScreen(
+            return HomeWrapper(
               isDarkMode: isDarkMode,
               toggleTheme: toggleTheme,
-              selectedIndex: selectedIndex,
-              onTabChanged: onTabChanged,
             );
+          } else {
+            return const LoginScreen();
           }
-          // ...put your login screen here...
-          return const Scaffold(
-            body: Center(child: Text('Not signed in!')),
-          );
         },
       ),
+    );
+  }
+}
+
+class HomeWrapper extends StatefulWidget {
+  final bool isDarkMode;
+  final Function(bool) toggleTheme;
+
+  const HomeWrapper({
+    Key? key,
+    required this.isDarkMode,
+    required this.toggleTheme,
+  }) : super(key: key);
+
+  @override
+  State<HomeWrapper> createState() => _HomeWrapperState();
+}
+
+class _HomeWrapperState extends State<HomeWrapper> {
+  int selectedIndex = 0;
+
+  void onTabChanged(int index) {
+    setState(() {
+      selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return HomeScreen(
+      isDarkMode: widget.isDarkMode,
+      toggleTheme: widget.toggleTheme,
+      selectedIndex: selectedIndex,
+      onTabChanged: onTabChanged,
     );
   }
 }

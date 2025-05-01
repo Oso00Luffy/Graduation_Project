@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../main.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 
 class AuthGate extends StatelessWidget {
-  final bool isDarkMode;
   final Function(bool) toggleTheme;
   final int selectedIndex;
   final Function(int) onTabChanged;
 
   const AuthGate({
     Key? key,
-    required this.isDarkMode,
     required this.toggleTheme,
     required this.selectedIndex,
     required this.onTabChanged,
@@ -23,20 +22,18 @@ class AuthGate extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        if (snapshot.hasData) {
-          return HomeScreen(
-            isDarkMode: isDarkMode,
-            toggleTheme: toggleTheme,
-            selectedIndex: selectedIndex,
-            onTabChanged: onTabChanged,
-          );
-        }
-        return const LoginScreen();
+
+    if (snapshot.hasData) {
+    return HomeWrapper(
+    isDarkMode: true, // Get from state
+    toggleTheme: (value) {}, // Get from state
+    );
+    } else {
+    return const LoginScreen();
+    }
       },
     );
   }
-}
+  }
