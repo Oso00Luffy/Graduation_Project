@@ -9,18 +9,7 @@ import 'settings_screen.dart';
 import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  final bool isDarkMode;
-  final Function(bool) toggleTheme;
-  final int selectedIndex;
-  final Function(int) onTabChanged;
-
-  const HomeScreen({
-    Key? key,
-    required this.isDarkMode,
-    required this.toggleTheme,
-    required this.selectedIndex,
-    required this.onTabChanged,
-  }) : super(key: key);
+  const HomeScreen({Key? key}) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -147,6 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class HomeContent extends StatelessWidget {
   final VoidCallback onGotoSettingsTab;
+
   const HomeContent({
     super.key,
     required this.onGotoSettingsTab,
@@ -269,7 +259,6 @@ class HomeContent extends StatelessWidget {
                     Icons.lock,
                     'Encrypt Message',
                     EncryptMessageScreen(),
-
                   ),
                   const SizedBox(width: 10),
                   _buildQuickActionButton(
@@ -278,7 +267,6 @@ class HomeContent extends StatelessWidget {
                     Icons.lock_open,
                     'Decrypt Message',
                     DecryptMessageScreen(prefilledEncryptedText: ''),
-                    toggleTheme,
                   ),
                   const SizedBox(width: 10),
                   _buildQuickActionButton(
@@ -287,7 +275,6 @@ class HomeContent extends StatelessWidget {
                     Icons.image,
                     'Encrypt Image',
                     EncryptImageScreen(),
-                    toggleTheme,
                   ),
                   const SizedBox(width: 10),
                   _buildQuickActionButton(
@@ -296,7 +283,6 @@ class HomeContent extends StatelessWidget {
                     Icons.image_search,
                     'Decrypt Image',
                     DecryptImageScreen(),
-                    toggleTheme,
                   ),
                   const SizedBox(width: 10),
                   _buildQuickActionButton(
@@ -305,7 +291,6 @@ class HomeContent extends StatelessWidget {
                     Icons.chat,
                     'Secure Chat',
                     SecureChatScreen(),
-                    toggleTheme,
                   ),
                 ],
               ),
@@ -322,7 +307,6 @@ class HomeContent extends StatelessWidget {
       IconData icon,
       String label,
       Widget screen,
-      Function(bool) toggleTheme,
       ) {
     return Column(
       children: [
@@ -331,10 +315,7 @@ class HomeContent extends StatelessWidget {
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => screen,
-                settings: RouteSettings(arguments: toggleTheme),
-              ),
+              MaterialPageRoute(builder: (_) => screen),
             );
           },
           backgroundColor: theme.colorScheme.primary,
@@ -367,7 +348,10 @@ class HomeContent extends StatelessWidget {
             const SizedBox(height: 10),
             ...activities
                 .map((activity) => _buildActivityItem(
-                theme, activity['description']!, activity['timeAgo']!))
+              theme,
+              activity['description']!,
+              activity['timeAgo']!,
+            ))
                 .toList(),
           ],
         ),
@@ -376,7 +360,6 @@ class HomeContent extends StatelessWidget {
   }
 
   List<Map<String, String>> _fetchRecentActivities() {
-    // Mock data - replace with actual data fetching logic
     return [
       {'description': 'Encrypted a message', 'timeAgo': '2 hours ago'},
       {'description': 'Decrypted an image', 'timeAgo': '4 hours ago'},
@@ -385,7 +368,10 @@ class HomeContent extends StatelessWidget {
   }
 
   Widget _buildActivityItem(
-      ThemeData theme, String activity, String timeAgo) {
+      ThemeData theme,
+      String activity,
+      String timeAgo,
+      ) {
     return ListTile(
       leading: Icon(Icons.history, color: theme.colorScheme.primary),
       title: Text(activity, style: theme.textTheme.bodyMedium),

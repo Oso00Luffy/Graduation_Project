@@ -1,10 +1,7 @@
-// File: lib/screens/login_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import '../main.dart';
-import 'home_screen.dart'; // Make sure this exists
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -54,6 +51,13 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
     } on FirebaseAuthException catch (e) {
       setState(() => _error = _mapFirebaseAuthError(e.code));
     } catch (e) {
@@ -87,14 +91,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => HomeWrapper(
-            isDarkMode: false,
-            toggleTheme: (_) {},
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
-
     } on FirebaseAuthException catch (e) {
       setState(() => _error = _mapFirebaseAuthError(e.code));
     } catch (e) {
@@ -129,14 +127,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => HomeWrapper(
-            isDarkMode: false,
-            toggleTheme: (_) {},
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
-
     } catch (e) {
       setState(() => _error = 'Google sign-in failed. Please try again.');
     }
@@ -157,14 +149,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => HomeWrapper(
-            isDarkMode: false,
-            toggleTheme: (_) {},
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
-
     } catch (e) {
       setState(() => _error = 'Guest sign-in failed. Please try again.');
     }
@@ -190,10 +176,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF10151A) : const Color(0xFFF4F8FB),
       body: Center(
         child: SingleChildScrollView(
           child: ConstrainedBox(
@@ -212,16 +196,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       'Welcome!',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                        color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       _showUsernameField ? 'Create your account' : 'Sign in to continue',
-                      style: TextStyle(
-                        color: isDark ? Colors.grey[300] : Colors.grey[700],
-                        fontSize: 16,
-                      ),
+                      style: TextStyle(color: Colors.grey[700], fontSize: 16),
                     ),
                     const SizedBox(height: 28),
                     if (_showUsernameField)
@@ -286,7 +267,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: Text(
                               _showUsernameField ? "Sign in" : "Sign up",
                               style: TextStyle(
-                                color: Theme.of(context).colorScheme.secondary,
+                                color: theme.colorScheme.secondary,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
                               ),
