@@ -46,7 +46,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '76800991751',
     projectId: 'sccapp-c3165',
     authDomain: 'sccapp-c3165.firebaseapp.com',
-    storageBucket: 'sccapp-c3165.firebasestorage.app',
+    storageBucket: "sccapp-c3165.appspot.com",
     measurementId: 'G-CEGQ06WT91',
   );
 
@@ -55,7 +55,7 @@ class DefaultFirebaseOptions {
     appId: '1:76800991751:android:8ad040615917a6c4a380a2',
     messagingSenderId: '76800991751',
     projectId: 'sccapp-c3165',
-    storageBucket: 'sccapp-c3165.firebasestorage.app',
+    storageBucket: "sccapp-c3165.appspot.com",
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
@@ -63,7 +63,7 @@ class DefaultFirebaseOptions {
     appId: '1:76800991751:ios:e0157025f15cf20da380a2',
     messagingSenderId: '76800991751',
     projectId: 'sccapp-c3165',
-    storageBucket: 'sccapp-c3165.firebasestorage.app',
+    storageBucket: "sccapp-c3165.appspot.com",
     iosClientId: '76800991751-3g9ctbnngghe0vjcsgafrkd8tqhsf9v8.apps.googleusercontent.com',
     iosBundleId: 'com.example.graduationProject',
   );
@@ -73,7 +73,7 @@ class DefaultFirebaseOptions {
     appId: '1:76800991751:ios:e0157025f15cf20da380a2',
     messagingSenderId: '76800991751',
     projectId: 'sccapp-c3165',
-    storageBucket: 'sccapp-c3165.firebasestorage.app',
+    storageBucket: "sccapp-c3165.appspot.com",
     iosClientId: '76800991751-3g9ctbnngghe0vjcsgafrkd8tqhsf9v8.apps.googleusercontent.com',
     iosBundleId: 'com.example.graduationProject',
   );
@@ -84,7 +84,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '76800991751',
     projectId: 'sccapp-c3165',
     authDomain: 'sccapp-c3165.firebaseapp.com',
-    storageBucket: 'sccapp-c3165.firebasestorage.app',
+    storageBucket: "sccapp-c3165.appspot.com",
     measurementId: 'G-8ZDHRPDSC8',
   );
 }

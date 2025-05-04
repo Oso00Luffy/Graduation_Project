@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:graduation_project/screens/firebase_options.dart';
-import 'theme_provider.dart'; // Import the ThemeProvider
+import 'theme_provider.dart';
 
 // Screens
 import 'screens/login_screen.dart';
@@ -11,9 +11,12 @@ import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Prevent duplicate initialization (especially for web hot restart)
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeProvider()..loadThemePreference(),

@@ -17,14 +17,17 @@ class _ProfileKeysSectionState extends State<ProfileKeysSection> {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: RecentKeysService.recentKeysStream(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text('No keys yet.'));
         }
 
         final docs = snapshot.data!.docs;
-        if (docs.isEmpty) {
-          return const Center(child: Text('No keys yet.'));
-        }
 
         // Synchronize the expansion state list with the number of documents
         if (_isExpanded.length != docs.length) {
@@ -40,6 +43,8 @@ class _ProfileKeysSectionState extends State<ProfileKeysSection> {
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
                 child: ExpansionPanelList(
+                  elevation: 1,
+                  expandedHeaderPadding: EdgeInsets.zero,
                   expansionCallback: (panelIndex, isExpanded) {
                     setState(() {
                       _isExpanded[index] = !isExpanded;
@@ -51,7 +56,9 @@ class _ProfileKeysSectionState extends State<ProfileKeysSection> {
                       headerBuilder: (context, isExpanded) {
                         return ListTile(
                           title: Text('${data['type']} key'),
-                          subtitle: Text('Created At: ${data['created_at']?.toDate().toString() ?? 'N/A'}'),
+                          subtitle: Text(
+                            'Created At: ${data['created_at'] != null ? data['created_at'].toDate().toString() : 'N/A'}',
+                          ),
                         );
                       },
                       body: Column(

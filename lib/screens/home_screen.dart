@@ -4,9 +4,10 @@ import 'encrypt_message_screen.dart';
 import 'decrypt_message_screen.dart';
 import 'encrypt_image_screen.dart';
 import 'decrypt_image_screen.dart';
-import 'secure_chat_screen.dart';
+// import 'secure_chat_screen.dart'; // REMOVE this if you're dropping SecureChatScreen
 import 'settings_screen.dart';
 import 'profile_screen.dart';
+import 'chat_room_screen.dart'; // ADD this for the chat rooms
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -32,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
     HomeContent(onGotoSettingsTab: () => _onTabChanged(1)),
     SettingsScreen(),
     ProfileScreen(),
-    SecureChatScreen(),
+    const ChatRoomScreen(), // <-- Replace or add this as the chat tab
   ];
 
   @override
@@ -100,6 +101,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 _onTabChanged(2);
               },
             ),
+            ListTile(
+              leading: Icon(Icons.group, color: theme.colorScheme.primary),
+              title: const Text('Chat Rooms'),
+              onTap: () {
+                Navigator.pop(context);
+                _onTabChanged(3);
+              },
+            ),
             const Divider(),
             ListTile(
               leading: Icon(Icons.logout, color: theme.colorScheme.primary),
@@ -121,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Secure Chat'),
+          BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Chat Rooms'),
         ],
         currentIndex: selectedIndex,
         selectedItemColor: theme.colorScheme.primary,
@@ -284,13 +293,22 @@ class HomeContent extends StatelessWidget {
                     'Decrypt Image',
                     DecryptImageScreen(),
                   ),
+                  // REMOVE Secure Chat if you don't need it:
+                  // const SizedBox(width: 10),
+                  // _buildQuickActionButton(
+                  //   context,
+                  //   theme,
+                  //   Icons.chat,
+                  //   'Secure Chat',
+                  //   SecureChatScreen(),
+                  // ),
                   const SizedBox(width: 10),
                   _buildQuickActionButton(
                     context,
                     theme,
-                    Icons.chat,
-                    'Secure Chat',
-                    SecureChatScreen(),
+                    Icons.group,
+                    'Chat Rooms',
+                    const ChatRoomScreen(),
                   ),
                 ],
               ),
