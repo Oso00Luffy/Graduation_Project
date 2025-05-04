@@ -4,10 +4,9 @@ import 'encrypt_message_screen.dart';
 import 'decrypt_message_screen.dart';
 import 'encrypt_image_screen.dart';
 import 'decrypt_image_screen.dart';
-// import 'secure_chat_screen.dart'; // REMOVE this if you're dropping SecureChatScreen
 import 'settings_screen.dart';
 import 'profile_screen.dart';
-import 'chat_room_screen.dart'; // ADD this for the chat rooms
+import 'chat_room_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -33,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
     HomeContent(onGotoSettingsTab: () => _onTabChanged(1)),
     SettingsScreen(),
     ProfileScreen(),
-    const ChatRoomScreen(), // <-- Replace or add this as the chat tab
+    const ChatRoomScreen(),
   ];
 
   @override
@@ -57,7 +56,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      drawer: Drawer(
+      drawer: MediaQuery.of(context).size.width < 800
+          ? Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
@@ -120,7 +120,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-      ),
+      )
+          : null, // No drawer for large screens
       body: IndexedStack(
         index: selectedIndex,
         children: _widgetOptions,
@@ -155,23 +156,63 @@ class HomeContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          _buildUserProfileSection(context, user, theme),
-          const SizedBox(height: 20),
-          _buildQuickActionsSection(context, theme),
-          const SizedBox(height: 20),
-          _buildRecentActivitiesSection(theme),
-        ],
-      ),
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 800;
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: isWide ? 1200 : double.infinity,
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: isWide
+                  ? Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Left column: Profile + Recent Activities
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      children: [
+                        _buildUserProfileSection(context, user, theme, isWide),
+                        const SizedBox(height: 20),
+                        _buildRecentActivitiesSection(theme, isWide),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  // Right column: Quick Actions
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      children: [
+                        _buildQuickActionsSection(context, theme, isWide),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+                  : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  _buildUserProfileSection(context, user, theme, isWide),
+                  const SizedBox(height: 20),
+                  _buildQuickActionsSection(context, theme, isWide),
+                  const SizedBox(height: 20),
+                  _buildRecentActivitiesSection(theme, isWide),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildUserProfileSection(
-      BuildContext context, User? user, ThemeData theme) {
+      BuildContext context, User? user, ThemeData theme, bool isWide) {
     final String displayName = user?.displayName ?? 'No Name';
     final String email = user?.email ?? 'No Email';
     final String? photoURL = user?.photoURL;
@@ -181,17 +222,18 @@ class HomeContent extends StatelessWidget {
       elevation: 5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isWide ? 32 : 16),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
             CircleAvatar(
-              radius: 40,
+              radius: isWide ? 60 : 40,
               backgroundImage: photoURL != null
                   ? NetworkImage(photoURL)
                   : const AssetImage('assets/images/profile_picture.png')
               as ImageProvider,
             ),
-            const SizedBox(width: 20),
+            SizedBox(width: isWide ? 32 : 20),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,36 +242,47 @@ class HomeContent extends StatelessWidget {
                     displayName,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
+                      fontSize: isWide ? 28 : 20,
                       color: theme.colorScheme.primary,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 8),
                   Text(
                     email,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.textTheme.bodyMedium?.color
-                          ?.withOpacity(0.7),
+                      color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                      fontSize: isWide ? 18 : 14,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 8),
                   Text(
                     'Member since: January 2025',
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: theme.hintColor),
                   ),
-                  const SizedBox(height: 5),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                  const SizedBox(height: 10),
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isWide ? 32 : 16,
+                          vertical: isWide ? 16 : 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        textStyle: theme.textTheme.titleMedium?.copyWith(
+                          color: Colors.white,
+                        ),
                       ),
+                      onPressed: onGotoSettingsTab,
+                      child: const Text('Settings'),
                     ),
-                    onPressed: onGotoSettingsTab,
-                    child: const Text('Settings'),
                   ),
                 ],
               ),
@@ -240,13 +293,14 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActionsSection(BuildContext context, ThemeData theme) {
+  Widget _buildQuickActionsSection(
+      BuildContext context, ThemeData theme, bool isWide) {
     return Card(
       color: theme.cardColor,
       elevation: 5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isWide ? 32 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -255,63 +309,56 @@ class HomeContent extends StatelessWidget {
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.primary,
+                fontSize: isWide ? 22 : 16,
               ),
             ),
-            const SizedBox(height: 10),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: <Widget>[
-                  _buildQuickActionButton(
-                    context,
-                    theme,
-                    Icons.lock,
-                    'Encrypt Message',
-                    EncryptMessageScreen(),
-                  ),
-                  const SizedBox(width: 10),
-                  _buildQuickActionButton(
-                    context,
-                    theme,
-                    Icons.lock_open,
-                    'Decrypt Message',
-                    DecryptMessageScreen(prefilledEncryptedText: ''),
-                  ),
-                  const SizedBox(width: 10),
-                  _buildQuickActionButton(
-                    context,
-                    theme,
-                    Icons.image,
-                    'Encrypt Image',
-                    EncryptImageScreen(),
-                  ),
-                  const SizedBox(width: 10),
-                  _buildQuickActionButton(
-                    context,
-                    theme,
-                    Icons.image_search,
-                    'Decrypt Image',
-                    DecryptImageScreen(),
-                  ),
-                  // REMOVE Secure Chat if you don't need it:
-                  // const SizedBox(width: 10),
-                  // _buildQuickActionButton(
-                  //   context,
-                  //   theme,
-                  //   Icons.chat,
-                  //   'Secure Chat',
-                  //   SecureChatScreen(),
-                  // ),
-                  const SizedBox(width: 10),
-                  _buildQuickActionButton(
-                    context,
-                    theme,
-                    Icons.group,
-                    'Chat Rooms',
-                    const ChatRoomScreen(),
-                  ),
-                ],
-              ),
+            const SizedBox(height: 16),
+            Wrap(
+              alignment: WrapAlignment.start,
+              spacing: isWide ? 30 : 10,
+              runSpacing: isWide ? 30 : 10,
+              children: <Widget>[
+                _buildQuickActionButton(
+                  context,
+                  theme,
+                  Icons.lock,
+                  'Encrypt Message',
+                  EncryptMessageScreen(),
+                  isWide,
+                ),
+                _buildQuickActionButton(
+                  context,
+                  theme,
+                  Icons.lock_open,
+                  'Decrypt Message',
+                  DecryptMessageScreen(prefilledEncryptedText: ''),
+                  isWide,
+                ),
+                _buildQuickActionButton(
+                  context,
+                  theme,
+                  Icons.image,
+                  'Encrypt Image',
+                  EncryptImageScreen(),
+                  isWide,
+                ),
+                _buildQuickActionButton(
+                  context,
+                  theme,
+                  Icons.image_search,
+                  'Decrypt Image',
+                  DecryptImageScreen(),
+                  isWide,
+                ),
+                _buildQuickActionButton(
+                  context,
+                  theme,
+                  Icons.group,
+                  'Chat Rooms',
+                  const ChatRoomScreen(),
+                  isWide,
+                ),
+              ],
             ),
           ],
         ),
@@ -325,34 +372,39 @@ class HomeContent extends StatelessWidget {
       IconData icon,
       String label,
       Widget screen,
+      bool isWide,
       ) {
-    return Column(
-      children: [
-        FloatingActionButton(
-          heroTag: label,
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => screen),
-            );
-          },
-          backgroundColor: theme.colorScheme.primary,
-          child: Icon(icon, size: 30, color: Colors.white),
-        ),
-        const SizedBox(height: 5),
-        Text(label, style: theme.textTheme.bodySmall),
-      ],
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: Column(
+        children: [
+          FloatingActionButton(
+            heroTag: label,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => screen),
+              );
+            },
+            backgroundColor: theme.colorScheme.primary,
+            child: Icon(icon, size: isWide ? 36 : 30, color: Colors.white),
+            elevation: isWide ? 8 : 4,
+          ),
+          const SizedBox(height: 5),
+          Text(label, style: theme.textTheme.bodyMedium?.copyWith(fontSize: isWide ? 16 : 12)),
+        ],
+      ),
     );
   }
 
-  Widget _buildRecentActivitiesSection(ThemeData theme) {
+  Widget _buildRecentActivitiesSection(ThemeData theme, bool isWide) {
     final activities = _fetchRecentActivities();
     return Card(
       color: theme.cardColor,
       elevation: 5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isWide ? 32 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -361,14 +413,16 @@ class HomeContent extends StatelessWidget {
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.primary,
+                fontSize: isWide ? 22 : 16,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             ...activities
                 .map((activity) => _buildActivityItem(
               theme,
               activity['description']!,
               activity['timeAgo']!,
+              isWide,
             ))
                 .toList(),
           ],
@@ -389,11 +443,15 @@ class HomeContent extends StatelessWidget {
       ThemeData theme,
       String activity,
       String timeAgo,
+      bool isWide,
       ) {
     return ListTile(
-      leading: Icon(Icons.history, color: theme.colorScheme.primary),
-      title: Text(activity, style: theme.textTheme.bodyMedium),
-      subtitle: Text(timeAgo, style: theme.textTheme.bodySmall),
+      leading: Icon(Icons.history, color: theme.colorScheme.primary, size: isWide ? 32 : 24),
+      title: Text(activity,
+          style: theme.textTheme.bodyMedium?.copyWith(fontSize: isWide ? 18 : 14)),
+      subtitle: Text(timeAgo,
+          style: theme.textTheme.bodySmall?.copyWith(fontSize: isWide ? 14 : 12)),
+      contentPadding: EdgeInsets.symmetric(vertical: isWide ? 12 : 4),
     );
   }
 }

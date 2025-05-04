@@ -12,7 +12,6 @@ import 'screens/home_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
-    name: 'SCC_App',
     options: DefaultFirebaseOptions.currentPlatform,
   );
   runApp(
