@@ -12,6 +12,7 @@ import 'screens/home_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
+    name: 'SCC_App', // <--- Add this line to match your working config!
     options: DefaultFirebaseOptions.currentPlatform,
   );
   runApp(
@@ -23,7 +24,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   static const Color aquaBlue = Color(0xFF1ECBE1);
 
@@ -57,9 +58,9 @@ class MyApp extends StatelessWidget {
             foregroundColor: Color(0xFFB3E5FC),
             elevation: 0,
           ), colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF2196F3),
-            secondary: Color(0xFF03A9F4),
-          ).copyWith(background: const Color(0xFF0A2540)),
+          primary: Color(0xFF2196F3),
+          secondary: Color(0xFF03A9F4),
+        ).copyWith(background: const Color(0xFF0A2540)),
         );
       case 'Sepia':
         return ThemeData.light().copyWith(
@@ -74,9 +75,9 @@ class MyApp extends StatelessWidget {
             foregroundColor: Color(0xFF5B4636),
             elevation: 0,
           ), colorScheme: const ColorScheme.light(
-            primary: Color(0xFF8B6F43),
-            secondary: Color(0xFFC9B18B),
-          ).copyWith(background: const Color(0xFFF5E9DA)),
+          primary: Color(0xFF8B6F43),
+          secondary: Color(0xFFC9B18B),
+        ).copyWith(background: const Color(0xFFF5E9DA)),
         );
       default:
         return ThemeData.light();
@@ -166,7 +167,7 @@ class MyApp extends StatelessWidget {
 }
 
 class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({Key? key}) : super(key: key);
+  const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {

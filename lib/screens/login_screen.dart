@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../utils/crypto_service.dart';
 import 'home_screen.dart';
 import 'dart:convert';
@@ -49,6 +50,14 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = '';
     });
 
+    if (_emailController.text.trim().isEmpty || _passwordController.text.isEmpty) {
+      setState(() {
+        _error = 'Please enter email and password.';
+        _isLoading = false;
+      });
+      return;
+    }
+
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -82,13 +91,23 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = '';
     });
 
-    try {
-      if (_usernameController.text.trim().isEmpty) {
-        setState(() => _error = 'Please enter a username.');
+    if (_usernameController.text.trim().isEmpty) {
+      setState(() {
+        _error = 'Please enter a username.';
         _isLoading = false;
-        return;
-      }
+      });
+      return;
+    }
 
+    if (_emailController.text.trim().isEmpty || _passwordController.text.isEmpty) {
+      setState(() {
+        _error = 'Please enter email and password.';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    try {
       UserCredential cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -128,19 +147,27 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        setState(() => _isLoading = false);
-        return;
+      UserCredential cred;
+
+      if (kIsWeb) {
+        // Web: use the popup method
+        cred = await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
+      } else {
+        // Mobile: use google_sign_in package
+        final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+        if (googleUser == null) {
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        final AuthCredential credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        cred = await FirebaseAuth.instance.signInWithCredential(credential);
       }
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      UserCredential cred = await FirebaseAuth.instance.signInWithCredential(credential);
 
       // Generate/store keys and upload public key to Firestore
       final user = cred.user;
@@ -192,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
   /// Ensures a key pair exists for this user, and uploads public key if missing.
   Future<void> _ensureKeys(User user) async {
     final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-    if (!doc.exists || doc['publicKey'] == null) {
+    if (!doc.exists || (doc.data()?['publicKey'] == null)) {
       final publicKeyBytes = await CryptoService.generateAndStoreKeyPair(user.uid);
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'publicKey': base64Encode(publicKeyBytes),
@@ -356,7 +383,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: TextButton.icon(
-                          icon: Icon(Icons.person_outline),
+                          icon: const Icon(Icons.person_outline),
                           label: const Text('Continue as Guest'),
                           onPressed: _signInAsGuest,
                           style: TextButton.styleFrom(
