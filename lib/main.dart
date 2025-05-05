@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'screens/firebase_options.dart';
 import 'theme/theme_provider.dart';
 
@@ -11,10 +13,26 @@ import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    name: 'SCC_App', // <--- Add this line to match your working config!
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+
+  // Cross-platform safe Firebase initialization
+  if (kIsWeb) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await FirebaseAppCheck.instance.activate(
+      webProvider: ReCaptchaV3Provider('YOUR_RECAPTCHA_V3_SITE_KEY'), // Replace with your actual key!
+    );
+  } else {
+    await Firebase.initializeApp(
+      name: 'SCC_App',
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: AndroidProvider.debug,
+      appleProvider: AppleProvider.debug,
+    );
+  }
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeProvider()..loadThemePreference(),
@@ -57,10 +75,11 @@ class MyApp extends StatelessWidget {
             backgroundColor: Color(0xFF133B5C),
             foregroundColor: Color(0xFFB3E5FC),
             elevation: 0,
-          ), colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF2196F3),
-          secondary: Color(0xFF03A9F4),
-        ).copyWith(background: const Color(0xFF0A2540)),
+          ),
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFF2196F3),
+            secondary: Color(0xFF03A9F4),
+          ).copyWith(background: const Color(0xFF0A2540)),
         );
       case 'Sepia':
         return ThemeData.light().copyWith(
@@ -74,10 +93,11 @@ class MyApp extends StatelessWidget {
             backgroundColor: Color(0xFFD2B48C),
             foregroundColor: Color(0xFF5B4636),
             elevation: 0,
-          ), colorScheme: const ColorScheme.light(
-          primary: Color(0xFF8B6F43),
-          secondary: Color(0xFFC9B18B),
-        ).copyWith(background: const Color(0xFFF5E9DA)),
+          ),
+          colorScheme: const ColorScheme.light(
+            primary: Color(0xFF8B6F43),
+            secondary: Color(0xFFC9B18B),
+          ).copyWith(background: const Color(0xFFF5E9DA)),
         );
       default:
         return ThemeData.light();
