@@ -20,7 +20,7 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     await FirebaseAppCheck.instance.activate(
-      webProvider: ReCaptchaV3Provider('6Ldtcy8rAAAAAIX6hXKOI5o_I7V3ATc7KoknTO8v'), // Replace with your actual key!
+      webProvider: ReCaptchaV3Provider('6Ldtcy8rAAAAAIX6hXKOI5o_I7V3ATc7KoknTO8v'),
     );
   } else {
     await Firebase.initializeApp(
