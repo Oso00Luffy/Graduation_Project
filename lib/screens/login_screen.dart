@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/crypto_service.dart';
 import 'home_screen.dart';
+import 'dart:convert';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -52,6 +55,12 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
 
+      // Generate keys for legacy users who might not have them yet
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await _ensureKeys(user);
+      }
+
       if (!mounted) return;
 
       Navigator.pushReplacement(
@@ -87,6 +96,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
       await cred.user?.updateDisplayName(_usernameController.text.trim());
 
+      // Generate and store keys, upload public key to Firestore
+      if (cred.user != null) {
+        final publicKeyBytes = await CryptoService.generateAndStoreKeyPair(cred.user!.uid);
+        await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set({
+          'publicKey': base64Encode(publicKeyBytes),
+          'displayName': _usernameController.text.trim(),
+          'email': _emailController.text.trim(),
+        }, SetOptions(merge: true));
+      }
+
       if (!mounted) return;
 
       Navigator.pushReplacement(
@@ -121,7 +140,13 @@ class _LoginScreenState extends State<LoginScreen> {
         idToken: googleAuth.idToken,
       );
 
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      UserCredential cred = await FirebaseAuth.instance.signInWithCredential(credential);
+
+      // Generate/store keys and upload public key to Firestore
+      final user = cred.user;
+      if (user != null) {
+        await _ensureKeys(user);
+      }
 
       if (!mounted) return;
 
@@ -143,7 +168,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.signInAnonymously();
+      UserCredential cred = await FirebaseAuth.instance.signInAnonymously();
+
+      // Generate/store keys and upload public key to Firestore
+      final user = cred.user;
+      if (user != null) {
+        await _ensureKeys(user);
+      }
 
       if (!mounted) return;
 
@@ -156,6 +187,19 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     setState(() => _isLoading = false);
+  }
+
+  /// Ensures a key pair exists for this user, and uploads public key if missing.
+  Future<void> _ensureKeys(User user) async {
+    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    if (!doc.exists || doc['publicKey'] == null) {
+      final publicKeyBytes = await CryptoService.generateAndStoreKeyPair(user.uid);
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'publicKey': base64Encode(publicKeyBytes),
+        'displayName': user.displayName,
+        'email': user.email,
+      }, SetOptions(merge: true));
+    }
   }
 
   void _toggleSignUp() {

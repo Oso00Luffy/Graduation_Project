@@ -306,7 +306,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _addCurrentUserToRoom() async {
-    // Defensive: make sure user is in members (in case user navigates directly)
     if (_user == null) return;
     final userMap = {
       'uid': _user!.uid,
@@ -366,6 +365,10 @@ class _ChatScreenState extends State<ChatScreen> {
         .collection('messages')
         .orderBy('sentAt', descending: false);
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Room: ${widget.roomId.substring(0, 8)}...'),
@@ -404,6 +407,23 @@ class _ChatScreenState extends State<ChatScreen> {
                     final senderPhotoURL = msg['senderPhotoURL'];
                     final messageText = msg['text'] ?? '';
                     final sentAt = msg['sentAt'];
+
+                    // Bubble colors based on theme and sender
+                    final Color myBubbleColor = colorScheme.primary.withOpacity(isDark ? 0.25 : 0.13);
+                    final Color otherBubbleColor = isDark
+                        ? colorScheme.surface.withOpacity(0.9)
+                        : colorScheme.surface.withOpacity(0.95);
+
+                    final TextStyle myTextStyle = theme.textTheme.bodyLarge!.copyWith(
+                      color: colorScheme.onPrimary,
+                    );
+                    final TextStyle otherTextStyle = theme.textTheme.bodyLarge!.copyWith(
+                      color: colorScheme.onSurface,
+                    );
+
+                    // Use shadow for clarity, NOT outline
+                    final Color textColor = isDark ? Colors.white : Colors.black;
+
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                       child: Row(
@@ -411,7 +431,6 @@ class _ChatScreenState extends State<ChatScreen> {
                         isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Incoming: Show avatar for others
                           if (!isMine)
                             CircleAvatar(
                               radius: 18,
@@ -421,7 +440,6 @@ class _ChatScreenState extends State<ChatScreen> {
                               as ImageProvider,
                             ),
                           if (!isMine) const SizedBox(width: 8),
-                          // Message bubble + name + timestamp
                           Flexible(
                             child: Column(
                               crossAxisAlignment: isMine
@@ -433,18 +451,16 @@ class _ChatScreenState extends State<ChatScreen> {
                                     padding: const EdgeInsets.only(left: 2.0, bottom: 2.0),
                                     child: Text(
                                       senderName,
-                                      style: const TextStyle(
-                                        fontSize: 13,
+                                      style: theme.textTheme.bodySmall!.copyWith(
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF4682B4),
+                                        color: colorScheme.secondary,
                                       ),
                                     ),
                                   ),
                                 Container(
-                                  padding:
-                                  const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
                                   decoration: BoxDecoration(
-                                    color: isMine ? Colors.blue[100] : Colors.grey[200],
+                                    color: isMine ? myBubbleColor : otherBubbleColor,
                                     borderRadius: BorderRadius.only(
                                       topLeft: const Radius.circular(16),
                                       topRight: const Radius.circular(16),
@@ -456,14 +472,29 @@ class _ChatScreenState extends State<ChatScreen> {
                                   ),
                                   child: Text(
                                     messageText,
-                                    style: const TextStyle(fontSize: 16),
+                                    style: (isMine ? myTextStyle : otherTextStyle).copyWith(
+                                      color: textColor,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 17,
+                                      shadows: [
+                                        Shadow(
+                                          blurRadius: 2.5,
+                                          color: isDark
+                                              ? Colors.black.withOpacity(0.9)
+                                              : Colors.white.withOpacity(0.8),
+                                          offset: const Offset(0.5, 0.5),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2.0, right: 4.0, left: 4.0),
                                   child: Text(
                                     _formatTimestamp(sentAt),
-                                    style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                    style: theme.textTheme.bodySmall!.copyWith(
+                                      color: theme.textTheme.bodySmall!.color?.withOpacity(0.6),
+                                    ),
                                   ),
                                 ),
                               ],

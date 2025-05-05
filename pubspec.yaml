@@ -32,6 +32,9 @@ dependencies:
   uuid: ^4.5.1
   qr_flutter: ^4.1.0
   firebase_storage: ^12.4.5
+  cryptography: ^2.7.0
+  flutter_secure_storage: ^9.2.4
+  firebase_app_check: ^0.3.2+5
 
 dev_dependencies:
   flutter_test:

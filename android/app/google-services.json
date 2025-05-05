@@ -2,7 +2,7 @@
   "project_info": {
     "project_number": "76800991751",
     "project_id": "sccapp-c3165",
-    "storage_bucket": "sccapp-c3165.appspot.com"
+    "storage_bucket": "sccapp-c3165.firebasestorage.app"
   },
   "client": [
     {
@@ -13,6 +13,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "76800991751-keghapqdmiop4fqvj96526ja3mh5nhkv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.graduation_project",
+            "certificate_hash": "19690d20744297fc7ec78f3fa70565e8181d0a3b"
+          }
+        },
         {
           "client_id": "76800991751-g9t744ivc9tmuvcm1idjbu9i7o39hnjd.apps.googleusercontent.com",
           "client_type": 3
@@ -29,6 +37,13 @@
             {
               "client_id": "76800991751-g9t744ivc9tmuvcm1idjbu9i7o39hnjd.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "76800991751-3g9ctbnngghe0vjcsgafrkd8tqhsf9v8.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.graduationProject"
+              }
             }
           ]
         }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../theme_provider.dart';
+import '../theme/theme_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -16,13 +16,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final List<Map<String, dynamic>> _availableThemes = [
     {'name': 'Light', 'themeMode': ThemeMode.light},
     {'name': 'Dark', 'themeMode': ThemeMode.dark},
+    {'name': 'AMOLED', 'themeMode': null},
+    {'name': 'Blue', 'themeMode': null},
+    {'name': 'Sepia', 'themeMode': null},
     {'name': 'System Default', 'themeMode': ThemeMode.system},
   ];
 
   @override
   void initState() {
     super.initState();
-    _selectedTheme = 'System Default'; // Initialize with a default value
+    _selectedTheme = 'System Default';
     _loadThemePreference();
   }
 
@@ -56,11 +59,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _applyTheme(String theme) {
     final selectedTheme = _availableThemes.firstWhere(
           (item) => item['name'] == theme,
-      orElse: () => _availableThemes[2], // Default to 'System Default'
+      orElse: () => _availableThemes[5], // Default to 'System Default'
     );
 
-    final themeMode = selectedTheme['themeMode'] as ThemeMode;
-    context.read<ThemeProvider>().setThemeMode(themeMode);
+    if (selectedTheme['themeMode'] != null) {
+      context.read<ThemeProvider>().setThemeMode(selectedTheme['themeMode']);
+    } else {
+      context.read<ThemeProvider>().setCustomTheme(theme);
+    }
   }
 
   @override
