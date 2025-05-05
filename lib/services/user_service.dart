@@ -93,3 +93,26 @@ Future<List<Map<String, String>>> fetchActivityLog() async {
     (data['activityLog'] as List).map((e) => Map<String, String>.from(e)),
   );
 }
+
+
+Future<void> addRecentKey({
+  required String type, // 'text' or 'image'
+  required String operation, // 'encrypt' or 'decrypt'
+  required String key,
+  String? details,
+}) async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+  final userDoc = FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .collection('recent_keys');
+
+  await userDoc.add({
+    'type': type,
+    'operation': operation,
+    'key': key,
+    'created_at': FieldValue.serverTimestamp(),
+    if (details != null) 'details': details,
+  });
+}

@@ -331,7 +331,7 @@ class HomeContent extends StatelessWidget {
                   theme,
                   Icons.lock_open,
                   'Decrypt Message',
-                  DecryptMessageScreen(prefilledEncryptedText: ''),
+                  DecryptMessageScreen(),
                   isWide,
                 ),
                 _buildQuickActionButton(

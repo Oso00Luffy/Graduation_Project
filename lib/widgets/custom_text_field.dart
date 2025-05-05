@@ -16,6 +16,8 @@ class CustomTextField extends StatelessWidget {
     this.maxLines = 1,
   }) : super(key: key);
 
+
+
   @override
   Widget build(BuildContext context) {
     // Only allow multiline if not a password field

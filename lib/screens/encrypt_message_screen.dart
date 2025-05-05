@@ -4,6 +4,7 @@ import '../services/encryption_service.dart';
 import '../widgets/custom_text_field.dart';
 import 'package:pointycastle/asymmetric/api.dart';
 import 'package:basic_utils/basic_utils.dart';
+import 'dart:convert';
 
 class EncryptMessageScreen extends StatefulWidget {
   final String? initialEncryptionType;
@@ -22,15 +23,14 @@ class EncryptMessageScreen extends StatefulWidget {
 class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _aesKeyController = TextEditingController();
+  final TextEditingController _aesIvController = TextEditingController();
   final TextEditingController _chachaKeyController = TextEditingController();
-  final TextEditingController _nonceController = TextEditingController();
+  final TextEditingController _chachaNonceController = TextEditingController();
   final TextEditingController _publicKeyController = TextEditingController();
   final TextEditingController _privateKeyController = TextEditingController();
   String? _encryptedMessage;
   bool _isLoading = false;
   bool _copied = false;
-  bool _showAesKey = false;
-  bool _showChaChaKey = false;
 
   final List<String> _encryptionTypes = ['AES', 'RSA', 'Hybrid', 'ChaCha20'];
   late String _selectedEncryptionType;
@@ -49,71 +49,64 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
   void dispose() {
     _messageController.dispose();
     _aesKeyController.dispose();
+    _aesIvController.dispose();
     _chachaKeyController.dispose();
-    _nonceController.dispose();
+    _chachaNonceController.dispose();
     _publicKeyController.dispose();
     _privateKeyController.dispose();
     super.dispose();
   }
 
-  Future<void> _generateAESKey() async {
-    final key = EncryptionService.generateAESKey();
+  void _generateAesKeyAndIv() {
     setState(() {
-      _aesKeyController.text = key;
-      _showAesKey = true;
+      _aesKeyController.text = EncryptionService.generateAESKey();
+      _aesIvController.text = EncryptionService.generateIV();
     });
   }
 
-  Future<void> _generateChaCha20Key() async {
-    final keys = EncryptionService.generateChaCha20Key();
+  void _generateChaCha20KeyAndNonce() {
     setState(() {
-      _chachaKeyController.text = keys['key']!;
-      _nonceController.text = keys['nonce']!;
-      _showChaChaKey = true;
+      _chachaKeyController.text = EncryptionService.generateChaCha20Key();
+      _chachaNonceController.text = EncryptionService.generateChaCha20Nonce();
     });
   }
 
-  Future<void> _generateAllHybridKeys() async {
-    final aesKey = EncryptionService.generateAESKey();
-    final chachaKeys = EncryptionService.generateChaCha20Key();
+  void _generateHybridKeys() {
     setState(() {
-      _aesKeyController.text = aesKey;
-      _chachaKeyController.text = chachaKeys['key']!;
-      _nonceController.text = chachaKeys['nonce']!;
-      _showAesKey = true;
-      _showChaChaKey = true;
+      _aesKeyController.text = EncryptionService.generateAESKey();
+      _aesIvController.text = EncryptionService.generateIV();
+      _chachaKeyController.text = EncryptionService.generateChaCha20Key();
+      _chachaNonceController.text = EncryptionService.generateChaCha20Nonce();
     });
   }
 
   Future<void> _generateRSAKeys() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
     try {
       final keyPair = await EncryptionService.generateRSAKeyPair();
-      final publicKeyPem = EncryptionService.encodePublicKeyToPem(keyPair.publicKey);
-      final privateKeyPem = EncryptionService.encodePrivateKeyToPem(keyPair.privateKey);
+      final publicKeyPem = CryptoUtils.encodeRSAPublicKeyToPemPkcs1(keyPair.publicKey);
+      final privateKeyPem = CryptoUtils.encodeRSAPrivateKeyToPemPkcs1(keyPair.privateKey);
       setState(() {
         _publicKeyController.text = publicKeyPem;
         _privateKeyController.text = privateKeyPem;
       });
     } catch (_) {}
-    setState(() {
-      _isLoading = false;
-    });
+    setState(() => _isLoading = false);
   }
 
   Future<void> _encryptMessage() async {
     final message = _messageController.text.trim();
     final aesKey = _aesKeyController.text.trim();
-    final chaChaKey = _chachaKeyController.text.trim();
-    final nonce = _nonceController.text.trim();
+    final aesIv = _aesIvController.text.trim();
+    final chachaKey = _chachaKeyController.text.trim();
+    final chachaNonce = _chachaNonceController.text.trim();
     final publicKeyPem = _publicKeyController.text.trim();
     String result;
 
     setState(() {
       _isLoading = true;
       _encryptedMessage = null;
+      _copied = false;
     });
 
     await Future.delayed(const Duration(milliseconds: 100));
@@ -122,10 +115,14 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
       if (message.isEmpty) {
         result = 'Please enter a message to encrypt.';
       } else if (_selectedEncryptionType == 'AES') {
-        if (aesKey.isEmpty) {
-          result = 'Please enter the AES key.';
+        if (aesKey.isEmpty || aesIv.isEmpty) {
+          result = 'Please generate or enter AES key (32 chars) and IV (base64, 24 chars).';
+        } else if (aesKey.length != 32) {
+          result = 'AES key must be exactly 32 characters (not base64).';
+        } else if (base64.decode(aesIv).length != 16) {
+          result = 'AES IV must be base64 (24 chars, 16 bytes).';
         } else {
-          result = EncryptionService.encryptAES(message, aesKey);
+          result = EncryptionService.encryptAES(message, aesKey, ivBase64: aesIv);
         }
       } else if (_selectedEncryptionType == 'RSA') {
         if (publicKeyPem.isEmpty) {
@@ -144,22 +141,28 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
           }
         }
       } else if (_selectedEncryptionType == 'Hybrid') {
-        if (aesKey.isEmpty || chaChaKey.isEmpty) {
-          result = 'Please enter both AES and ChaCha20 keys for Hybrid encryption.';
+        if (aesKey.isEmpty || aesIv.isEmpty || chachaKey.isEmpty || chachaNonce.isEmpty) {
+          result = 'Please generate or enter all keys and IV/nonce required for hybrid encryption.';
+        } else if (aesKey.length != 32) {
+          result = 'Hybrid requires AES key to be exactly 32 characters.';
+        } else if (base64.decode(aesIv).length != 16) {
+          result = 'Hybrid requires AES IV to be base64 (24 chars, 16 bytes).';
+        } else if (base64.decode(chachaKey).length != 32) {
+          result = 'Hybrid requires ChaCha20 key to be base64 (44 chars, 32 bytes).';
+        } else if (base64.decode(chachaNonce).length != 8) {
+          result = 'Hybrid requires ChaCha20 nonce to be base64 (12 chars, 8 bytes).';
         } else {
-          result = EncryptionService.hybridEncrypt(message, aesKey, chaChaKey);
+          result = EncryptionService.hybridEncrypt(message, aesKey, aesIv, chachaKey, chachaNonce);
         }
       } else if (_selectedEncryptionType == 'ChaCha20') {
-        if (chaChaKey.isEmpty || nonce.isEmpty) {
-          result = 'Please enter both the ChaCha20 key (32 chars) and nonce (8 chars).';
-        } else if (chaChaKey.length != 32 || nonce.length != 8) {
-          result = 'ChaCha20 requires a 32-character key and an 8-character nonce.';
+        if (chachaKey.isEmpty || chachaNonce.isEmpty) {
+          result = 'Please generate or enter ChaCha20 key (base64, 44 chars) and nonce (base64, 12 chars).';
+        } else if (base64.decode(chachaKey).length != 32) {
+          result = 'ChaCha20 key must be base64 (44 chars, 32 bytes).';
+        } else if (base64.decode(chachaNonce).length != 8) {
+          result = 'ChaCha20 nonce must be base64 (12 chars, 8 bytes).';
         } else {
-          try {
-            result = EncryptionService.encryptChaCha20(message, chaChaKey, nonceBase64: nonce);
-          } catch (e) {
-            result = 'ChaCha20 encryption failed: $e';
-          }
+          result = EncryptionService.encryptChaCha20(message, chachaKey, chachaNonce);
         }
       } else {
         result = 'Unknown encryption type.';
@@ -171,7 +174,6 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
     setState(() {
       _encryptedMessage = result;
       _isLoading = false;
-      _copied = false;
     });
   }
 
@@ -187,28 +189,6 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
     }
   }
 
-  void _copyPublicKeyToClipboard() async {
-    await Clipboard.setData(ClipboardData(text: _publicKeyController.text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Public key copied to clipboard')),
-    );
-  }
-
-  void _copyPrivateKeyToClipboard() async {
-    await Clipboard.setData(ClipboardData(text: _privateKeyController.text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Private key copied to clipboard')),
-    );
-  }
-
-  void _navigateBack(BuildContext context) {
-    Navigator.of(context).pop();
-  }
-
-  void _goToDecryptScreen(BuildContext context) {
-    Navigator.of(context).pushNamed('/decrypt-message');
-  }
-
   @override
   Widget build(BuildContext context) {
     final isAES = _selectedEncryptionType == 'AES';
@@ -221,7 +201,7 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
       body: Center(
         child: SingleChildScrollView(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
+            constraints: const BoxConstraints(maxWidth: 540),
             child: Card(
               elevation: 12,
               margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 32),
@@ -233,13 +213,13 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Top Navigation Row
+                    // Navigation
                     Row(
                       children: [
                         IconButton(
                           icon: const Icon(Icons.arrow_back, size: 26),
                           tooltip: 'Back',
-                          onPressed: () => _navigateBack(context),
+                          onPressed: () => Navigator.of(context).pop(),
                         ),
                         const Spacer(),
                         ElevatedButton.icon(
@@ -253,7 +233,7 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                           ),
                           icon: const Icon(Icons.lock_open, size: 18),
                           label: const Text("Go to Decrypt"),
-                          onPressed: () => _goToDecryptScreen(context),
+                          onPressed: () => Navigator.of(context).pushNamed('/decrypt-message'),
                         ),
                       ],
                     ),
@@ -283,12 +263,11 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                             _selectedEncryptionType = value;
                             _encryptedMessage = null;
                             _aesKeyController.clear();
+                            _aesIvController.clear();
                             _chachaKeyController.clear();
-                            _nonceController.clear();
+                            _chachaNonceController.clear();
                             _publicKeyController.clear();
                             _privateKeyController.clear();
-                            _showAesKey = false;
-                            _showChaChaKey = false;
                           });
                         }
                       },
@@ -314,15 +293,25 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                           Expanded(
                             child: CustomTextField(
                               controller: _aesKeyController,
-                              hintText: 'AES key (32 chars)',
-                              isPassword: !_showAesKey,
+                              hintText: 'AES key (32 chars, not base64)',
+                              isPassword: false,
+                              minLines: 1,
+                              maxLines: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: CustomTextField(
+                              controller: _aesIvController,
+                              hintText: 'AES IV (base64, 24 chars)',
+                              isPassword: false,
                               minLines: 1,
                               maxLines: 1,
                             ),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
-                            onPressed: _generateAESKey,
+                            onPressed: _generateAesKeyAndIv,
                             child: const Text("Generate"),
                           ),
                         ],
@@ -335,26 +324,28 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                           Expanded(
                             child: CustomTextField(
                               controller: _chachaKeyController,
-                              hintText: 'ChaCha20 key (32 chars)',
-                              isPassword: !_showChaChaKey,
+                              hintText: 'ChaCha20 key (base64, 44 chars)',
+                              isPassword: false,
+                              minLines: 1,
+                              maxLines: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: CustomTextField(
+                              controller: _chachaNonceController,
+                              hintText: 'ChaCha20 nonce (base64, 12 chars)',
+                              isPassword: false,
                               minLines: 1,
                               maxLines: 1,
                             ),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
-                            onPressed: _generateChaCha20Key,
+                            onPressed: _generateChaCha20KeyAndNonce,
                             child: const Text("Generate"),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 8),
-                      CustomTextField(
-                        controller: _nonceController,
-                        hintText: 'Nonce (8 chars)',
-                        isPassword: false,
-                        minLines: 1,
-                        maxLines: 1,
                       ),
                     ],
                     if (isHybrid) ...[
@@ -364,8 +355,8 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                           Expanded(
                             child: CustomTextField(
                               controller: _aesKeyController,
-                              hintText: 'AES key (32 chars)',
-                              isPassword: !_showAesKey,
+                              hintText: 'AES key (32 chars, not base64)',
+                              isPassword: false,
                               minLines: 1,
                               maxLines: 1,
                             ),
@@ -373,27 +364,43 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: CustomTextField(
+                              controller: _aesIvController,
+                              hintText: 'AES IV (base64, 24 chars)',
+                              isPassword: false,
+                              minLines: 1,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: CustomTextField(
                               controller: _chachaKeyController,
-                              hintText: 'ChaCha20 key (32 chars)',
-                              isPassword: !_showChaChaKey,
+                              hintText: 'ChaCha20 key (base64, 44 chars)',
+                              isPassword: false,
+                              minLines: 1,
+                              maxLines: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: CustomTextField(
+                              controller: _chachaNonceController,
+                              hintText: 'ChaCha20 nonce (base64, 12 chars)',
+                              isPassword: false,
                               minLines: 1,
                               maxLines: 1,
                             ),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
-                            onPressed: _generateAllHybridKeys,
+                            onPressed: _generateHybridKeys,
                             child: const Text("Generate All"),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 8),
-                      CustomTextField(
-                        controller: _nonceController,
-                        hintText: 'Nonce (8 chars)',
-                        isPassword: false,
-                        minLines: 1,
-                        maxLines: 1,
                       ),
                     ],
                     if (isRSA) ...[
@@ -405,11 +412,6 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.copy),
-                            onPressed: _copyPublicKeyToClipboard,
-                            tooltip: 'Copy public key',
-                          ),
                         ],
                       ),
                       CustomTextField(
@@ -427,11 +429,6 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.copy),
-                            onPressed: _copyPrivateKeyToClipboard,
-                            tooltip: 'Copy private key',
-                          ),
                         ],
                       ),
                       CustomTextField(
@@ -507,7 +504,9 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                                 label: Text(_copied ? 'Copied!' : 'Copy'),
                                 onPressed: _copyToClipboard,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _copied ? Colors.green : Theme.of(context).colorScheme.primary,
+                                  backgroundColor: _copied
+                                      ? Colors.green
+                                      : Theme.of(context).colorScheme.primary,
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                                   shape: RoundedRectangleBorder(

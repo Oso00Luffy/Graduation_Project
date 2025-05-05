@@ -9,7 +9,7 @@ import 'screens/chat_room_screen.dart';
 // Only screens that are navigated to with Navigator.pushNamed should be here!
 final Map<String, WidgetBuilder> routes = {
   '/encrypt-message': (context) => EncryptMessageScreen(),
-  '/decrypt-message': (context) => DecryptMessageScreen(prefilledEncryptedText: ''),
+  '/decrypt-message': (context) => DecryptMessageScreen(),
   '/encrypt-image': (context) => EncryptImageScreen(),
   '/decrypt-image': (context) => DecryptImageScreen(),
   '/file-sender': (context) => FileSenderScreen(),
