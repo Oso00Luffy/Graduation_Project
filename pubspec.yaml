@@ -35,6 +35,7 @@ dependencies:
   cryptography: ^2.7.0
   flutter_secure_storage: ^9.2.4
   firebase_app_check: ^0.3.2+5
+  image_gallery_saver: ^2.0.3
 
 dev_dependencies:
   flutter_test:
