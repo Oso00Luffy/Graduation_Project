@@ -24,7 +24,7 @@
   },
   "webApiKey": "AIzaSyCB5lcD3jindwA1H4_Bao6ED5ZuMSxN4bo",
   "hosting": {
-    "public": "web",
+    "public": "build/web",
     "ignore": [
       "firebase.json",
       "**/.*",
