@@ -6,7 +6,9 @@ import 'package:flutter/foundation.dart';
 import '../services/image_encryption_service.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:html' as html;
+
+// Platform-specific helper for downloading on web
+import '../utils/web_download_helper.dart' if (dart.library.html) '../utils/web_download_helper_web.dart';
 
 class DecryptImageScreen extends StatefulWidget {
   @override
@@ -22,7 +24,7 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
   bool _isDecrypting = false;
   bool _showSuccess = false;
 
-  static const int MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
+  static const int MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
   Future<void> _pickImage(String purpose, Function(Uint8List) onImageSelected) async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
@@ -102,12 +104,7 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
     if (_decryptedImageBytes == null) return;
 
     if (kIsWeb) {
-      final blob = html.Blob([_decryptedImageBytes]);
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download', 'decrypted_image.png')
-        ..click();
-      html.Url.revokeObjectUrl(url);
+      await saveImageWeb(_decryptedImageBytes!, 'decrypted_image.png');
     } else {
       final result = await ImageGallerySaver.saveImage(
         _decryptedImageBytes!,
@@ -139,7 +136,7 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF6a82fb), Color(0xFFfc5c7d)],
+            colors: [Color(0xFFfc5c7d), Color(0xFF6a82fb)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -177,7 +174,7 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                             onPick: () => _pickImage('Encrypted', (bytes) {
                               setState(() => _encryptedImageBytes = bytes);
                             }),
-                            icon: Icons.lock,
+                            icon: Icons.lock_outline,
                             pickLabel: 'Select Encrypted Image',
                           ),
                           SizedBox(height: 16),
@@ -317,7 +314,7 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(12),
                                         gradient: LinearGradient(
-                                          colors: [Color(0xFFfc5c7d), Color(0xFF6a82fb)],
+                                          colors: [Color(0xFF43e97b), Color(0xFF38f9d7)],
                                           begin: Alignment.centerLeft,
                                           end: Alignment.centerRight,
                                         ),
@@ -408,7 +405,7 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 gradient: LinearGradient(
-                  colors: [Color(0xFFfc5c7d), Color(0xFF6a82fb)],
+                  colors: [Color(0xFF43e97b), Color(0xFF38f9d7)],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                 ),
@@ -499,7 +496,7 @@ class StepperWidget extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: isActive
                       ? LinearGradient(
-                    colors: [Color(0xFFfc5c7d), Color(0xFF6a82fb)],
+                    colors: [Color(0xFF43e97b), Color(0xFF38f9d7)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   )
@@ -508,7 +505,7 @@ class StepperWidget extends StatelessWidget {
                   boxShadow: [
                     if (isActive)
                       BoxShadow(
-                        color: Color(0x33fc5c7d),
+                        color: Color(0x3343e97b),
                         blurRadius: 10,
                         spreadRadius: 1,
                         offset: Offset(0, 3),
@@ -534,7 +531,7 @@ class StepperWidget extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13.5,
-                  color: isActive ? Color(0xFFfc5c7d) : Colors.grey[600],
+                  color: isActive ? Color(0xFF43e97b) : Colors.grey[600],
                   fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
                   letterSpacing: 0.3,
                 ),

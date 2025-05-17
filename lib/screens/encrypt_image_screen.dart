@@ -6,7 +6,9 @@ import 'package:flutter/foundation.dart';
 import '../services/image_encryption_service.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:html' as html;
+
+// Platform-specific helper for downloading on web
+import '../utils/web_download_helper.dart' if (dart.library.html) '../utils/web_download_helper_web.dart';
 
 class EncryptImageScreen extends StatefulWidget {
   @override
@@ -102,12 +104,7 @@ class _EncryptImageScreenState extends State<EncryptImageScreen> {
     if (_encryptedImageBytes == null) return;
 
     if (kIsWeb) {
-      final blob = html.Blob([_encryptedImageBytes]);
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download', 'encrypted_image.png')
-        ..click();
-      html.Url.revokeObjectUrl(url);
+      await saveImageWeb(_encryptedImageBytes!, 'encrypted_image.png');
     } else {
       final result = await ImageGallerySaver.saveImage(
         _encryptedImageBytes!,
