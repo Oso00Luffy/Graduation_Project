@@ -408,7 +408,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _uploading = true);
 
       final bytes = await pickedFile.readAsBytes();
-      if (bytes.length > 5 * 1024 * 1024) {
+      if (bytes.length > 20 * 1024 * 1024) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('Image too large. Please pick a smaller file.')),

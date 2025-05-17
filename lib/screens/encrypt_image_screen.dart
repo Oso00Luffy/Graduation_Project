@@ -24,7 +24,7 @@ class _EncryptImageScreenState extends State<EncryptImageScreen> {
   bool _isEncrypting = false;
   bool _showSuccess = false;
 
-  static const int MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+  static const int MAX_IMAGE_SIZE = 20 * 1024 * 1024;
 
   Future<void> _pickImage(String purpose, Function(Uint8List) onImageSelected) async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
