@@ -19,6 +19,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     {'name': 'AMOLED', 'themeMode': null},
     {'name': 'Blue', 'themeMode': null},
     {'name': 'Sepia', 'themeMode': null},
+    {'name': 'Gold & Purple', 'themeMode': null},
+    {'name': 'Pink & Blue-Gray', 'themeMode': null},
     {'name': 'System Default', 'themeMode': ThemeMode.system},
   ];
 

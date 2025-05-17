@@ -5,6 +5,7 @@ import '../services/user_service.dart';
 import '../widgets/profile_keys_section.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -38,7 +39,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user != null) {
       if (user.photoURL != null && user.photoURL!.isNotEmpty) {
         setState(() {
-          _profilePicUrl = user.photoURL;
+          _profilePicUrl = kIsWeb
+              ? user.photoURL! + '?cb=${DateTime.now().millisecondsSinceEpoch}'
+              : user.photoURL!;
         });
         return;
       }
@@ -50,7 +53,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             .child('avatar');
         final url = await storageRef.getDownloadURL();
         setState(() {
-          _profilePicUrl = url;
+          _profilePicUrl = kIsWeb
+              ? url + '?cb=${DateTime.now().millisecondsSinceEpoch}'
+              : url;
         });
       } catch (e) {
         setState(() {
@@ -438,12 +443,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       final url = await storageRef.getDownloadURL();
+      final cacheBustedUrl = kIsWeb
+          ? "$url?cb=${DateTime.now().millisecondsSinceEpoch}"
+          : url;
 
-      await user.updatePhotoURL(url);
+      await user.updatePhotoURL(cacheBustedUrl);
       await user.reload();
 
       setState(() {
-        _profilePicUrl = url;
+        _profilePicUrl = cacheBustedUrl;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile picture updated!')),

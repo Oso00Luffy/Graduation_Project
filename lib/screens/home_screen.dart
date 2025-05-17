@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'encrypt_message_screen.dart';
 import 'decrypt_message_screen.dart';
 import 'encrypt_image_screen.dart';
@@ -121,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       )
-          : null, // No drawer for large screens
+          : null,
       body: IndexedStack(
         index: selectedIndex,
         children: _widgetOptions,
@@ -171,19 +172,17 @@ class HomeContent extends StatelessWidget {
                   ? Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Left column: Profile + Recent Activities
                   Expanded(
                     flex: 3,
                     child: Column(
                       children: [
                         _buildUserProfileSection(context, user, theme, isWide),
                         const SizedBox(height: 20),
-                        _buildRecentActivitiesSection(theme, isWide),
+                        _buildAdvancedUserSummarySection(context, user, theme, isWide),
                       ],
                     ),
                   ),
                   const SizedBox(width: 24),
-                  // Right column: Quick Actions
                   Expanded(
                     flex: 2,
                     child: Column(
@@ -201,7 +200,7 @@ class HomeContent extends StatelessWidget {
                   const SizedBox(height: 20),
                   _buildQuickActionsSection(context, theme, isWide),
                   const SizedBox(height: 20),
-                  _buildRecentActivitiesSection(theme, isWide),
+                  _buildAdvancedUserSummarySection(context, user, theme, isWide),
                 ],
               ),
             ),
@@ -305,7 +304,7 @@ class HomeContent extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'Quick Actions',
+              'Features',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.primary,
@@ -397,8 +396,7 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentActivitiesSection(ThemeData theme, bool isWide) {
-    final activities = _fetchRecentActivities();
+  Widget _buildAdvancedUserSummarySection(BuildContext context, User? user, ThemeData theme, bool isWide) {
     return Card(
       color: theme.cardColor,
       elevation: 5,
@@ -407,9 +405,9 @@ class HomeContent extends StatelessWidget {
         padding: EdgeInsets.all(isWide ? 32 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
+          children: [
             Text(
-              'Recent Activities',
+              "Your Account & Recent Activity",
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.primary,
@@ -417,41 +415,167 @@ class HomeContent extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            ...activities
-                .map((activity) => _buildActivityItem(
-              theme,
-              activity['description']!,
-              activity['timeAgo']!,
-              isWide,
-            ))
-                .toList(),
+            _buildAccountStatus(context, user, theme, isWide),
+            const SizedBox(height: 16),
+            Text(
+              "Recent Chat Activity",
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _RecentActivityList(user: user),
           ],
         ),
       ),
     );
   }
 
-  List<Map<String, String>> _fetchRecentActivities() {
-    return [
-      {'description': 'Encrypted a message', 'timeAgo': '2 hours ago'},
-      {'description': 'Decrypted an image', 'timeAgo': '4 hours ago'},
-      {'description': 'Sent a secure file', 'timeAgo': '1 day ago'},
-    ];
+  Widget _buildAccountStatus(BuildContext context, User? user, ThemeData theme, bool isWide) {
+    final bool isVerified = user?.emailVerified ?? false;
+    final DateTime? lastSignIn = user?.metadata.lastSignInTime;
+    final DateTime? creationTime = user?.metadata.creationTime;
+    final bool hasProfilePic = (user?.photoURL != null && user!.photoURL!.isNotEmpty);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListTile(
+          leading: Icon(
+            isVerified ? Icons.verified : Icons.mark_email_unread,
+            color: isVerified ? Colors.green : Colors.orange,
+            size: isWide ? 32 : 24,
+          ),
+          title: Text(
+            isVerified ? "Email Verified" : "Email Not Verified",
+            style: theme.textTheme.bodyMedium?.copyWith(fontSize: isWide ? 18 : 14),
+          ),
+          subtitle: Text(
+            isVerified
+                ? "Your email is verified"
+                : "Verify your email for improved security",
+            style: theme.textTheme.bodySmall?.copyWith(fontSize: isWide ? 14 : 12),
+          ),
+          trailing: !isVerified
+              ? TextButton(
+            onPressed: () async {
+              await user?.sendEmailVerification();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Verification email sent.")),
+              );
+            },
+            child: const Text("Verify Now"),
+          )
+              : null,
+          contentPadding: EdgeInsets.symmetric(vertical: isWide ? 12 : 4),
+        ),
+        ListTile(
+          leading: Icon(Icons.access_time, color: theme.colorScheme.primary, size: isWide ? 32 : 24),
+          title: const Text("Last Login"),
+          subtitle: Text(
+            lastSignIn != null
+                ? "${lastSignIn.year}-${lastSignIn.month.toString().padLeft(2, "0")}-${lastSignIn.day.toString().padLeft(2, "0")} ${lastSignIn.hour.toString().padLeft(2, "0")}:${lastSignIn.minute.toString().padLeft(2, "0")}"
+                : "Unknown",
+            style: theme.textTheme.bodySmall?.copyWith(fontSize: isWide ? 14 : 12),
+          ),
+          contentPadding: EdgeInsets.symmetric(vertical: isWide ? 12 : 4),
+        ),
+        ListTile(
+          leading: Icon(Icons.calendar_today, color: Colors.blueGrey, size: isWide ? 32 : 24),
+          title: const Text("Member Since"),
+          subtitle: Text(
+            creationTime != null
+                ? "${creationTime.year}-${creationTime.month.toString().padLeft(2, "0")}-${creationTime.day.toString().padLeft(2, "0")}"
+                : "Unknown",
+            style: theme.textTheme.bodySmall?.copyWith(fontSize: isWide ? 14 : 12),
+          ),
+          contentPadding: EdgeInsets.symmetric(vertical: isWide ? 12 : 4),
+        ),
+        ListTile(
+          leading: Icon(Icons.person, color: theme.colorScheme.primary, size: isWide ? 32 : 24),
+          title: Text(
+            hasProfilePic ? "Profile Picture Set" : "No Profile Picture",
+            style: theme.textTheme.bodyMedium?.copyWith(fontSize: isWide ? 18 : 14),
+          ),
+          subtitle: Text(
+            hasProfilePic
+                ? "Looks good!"
+                : "Add a profile picture to personalize your account.",
+            style: theme.textTheme.bodySmall?.copyWith(fontSize: isWide ? 14 : 12),
+          ),
+          contentPadding: EdgeInsets.symmetric(vertical: isWide ? 12 : 4),
+        ),
+      ],
+    );
+  }
+}
+
+class _RecentActivityList extends StatelessWidget {
+  final User? user;
+  const _RecentActivityList({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    if (user == null) {
+      return const Text('No user data');
+    }
+
+    // Show most recent 5 messages the user sent in any chat room
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collectionGroup('messages')
+          .where('senderUid', isEqualTo: user!.uid)
+          .orderBy('sentAt', descending: true)
+          .limit(5)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24.0),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12.0),
+            child: Text(
+              "No recent chat activity yet.",
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          );
+        }
+        final docs = snapshot.data!.docs;
+        return Column(
+          children: docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final text = data['text'] ?? '';
+            final sentAt = data['sentAt'];
+            final dateStr = _formatTimestamp(sentAt);
+            final roomId = doc.reference.parent.parent?.id ?? 'Room';
+
+            return ListTile(
+              leading: Icon(Icons.message, color: Theme.of(context).colorScheme.primary),
+              title: Text(
+                text.length > 40 ? "${text.substring(0, 40)}..." : text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text("Room: $roomId • $dateStr"),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+            );
+          }).toList(),
+        );
+      },
+    );
   }
 
-  Widget _buildActivityItem(
-      ThemeData theme,
-      String activity,
-      String timeAgo,
-      bool isWide,
-      ) {
-    return ListTile(
-      leading: Icon(Icons.history, color: theme.colorScheme.primary, size: isWide ? 32 : 24),
-      title: Text(activity,
-          style: theme.textTheme.bodyMedium?.copyWith(fontSize: isWide ? 18 : 14)),
-      subtitle: Text(timeAgo,
-          style: theme.textTheme.bodySmall?.copyWith(fontSize: isWide ? 14 : 12)),
-      contentPadding: EdgeInsets.symmetric(vertical: isWide ? 12 : 4),
-    );
+  String _formatTimestamp(dynamic ts) {
+    if (ts is Timestamp) {
+      final dt = ts.toDate();
+      return "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+    }
+    return "";
   }
 }

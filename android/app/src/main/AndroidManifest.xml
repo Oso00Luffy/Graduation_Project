@@ -24,6 +24,8 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="sccapp"/>
             </intent-filter>
         </activity>
         <meta-data

@@ -99,6 +99,54 @@ class MyApp extends StatelessWidget {
             secondary: Color(0xFFC9B18B),
           ).copyWith(surface: const Color(0xFFF5E9DA)),
         );
+      case 'Gold & Purple':
+        return ThemeData.dark().copyWith(
+          scaffoldBackgroundColor: const Color(0xFF2E003E),
+          cardColor: const Color(0xFF2E003E),
+          primaryColor: const Color(0xFFFDB913),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFFFDB913),
+            foregroundColor: Color(0xFF2E003E),
+            elevation: 0,
+          ),
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFFFDB913),
+            secondary: Color(0xFF2E003E),
+            background: Color(0xFF2E003E),
+          ),
+          floatingActionButtonTheme: const FloatingActionButtonThemeData(
+            backgroundColor: Color(0xFFFDB913),
+            foregroundColor: Color(0xFF2E003E),
+          ),
+          textTheme: const TextTheme(
+            bodyLarge: TextStyle(color: Color(0xFFFDB913)),
+            titleLarge: TextStyle(color: Color(0xFFFDB913), fontWeight: FontWeight.bold),
+          ),
+        );
+      case 'Pink & Blue-Gray':
+        return ThemeData.dark().copyWith(
+          scaffoldBackgroundColor: const Color(0xFF223A50),
+          cardColor: const Color(0xFF223A50),
+          primaryColor: const Color(0xFFE91E63),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFFE91E63),
+            foregroundColor: Color(0xFF223A50),
+            elevation: 0,
+          ),
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFFE91E63),
+            secondary: Color(0xFF223A50),
+            background: Color(0xFF223A50),
+          ),
+          floatingActionButtonTheme: const FloatingActionButtonThemeData(
+            backgroundColor: Color(0xFFE91E63),
+            foregroundColor: Color(0xFF223A50),
+          ),
+          textTheme: const TextTheme(
+            bodyLarge: TextStyle(color: Color(0xFFE91E63)),
+            titleLarge: TextStyle(color: Color(0xFFE91E63), fontWeight: FontWeight.bold),
+          ),
+        );
       default:
         return ThemeData.light();
     }
@@ -148,7 +196,8 @@ class MyApp extends StatelessWidget {
         ),
         hintStyle: const TextStyle(color: Color(0xFF888888)),
         labelStyle: const TextStyle(color: Color(0xFFB0B0B0)),
-      ), dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF232323)),
+      ),
+      dialogTheme: const DialogTheme(backgroundColor: Color(0xFF232323)),
     );
 
     return MaterialApp(
@@ -167,7 +216,7 @@ class MyApp extends StatelessWidget {
       ),
       darkTheme: betterDarkTheme,
       themeMode: (themeProvider.customThemeName != null)
-          ? ThemeMode.light // Use base light for custom themes
+          ? ThemeMode.light // Use base light for custom themes, overridden below
           : themeProvider.themeMode,
       debugShowCheckedModeBanner: false,
       home: const AuthWrapper(),

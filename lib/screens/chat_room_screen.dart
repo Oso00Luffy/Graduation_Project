@@ -124,8 +124,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   String _generateRoomLink(String roomId) {
-    // Replace with your app's scheme or domain if you use dynamic links
-    return 'mychatapp://chat?room=$roomId';
+    return 'sccapp://chat?room=$roomId';
   }
 
   Widget _buildCopyRoomCodeSection({required String roomId, String? label}) {
@@ -215,7 +214,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     if (_createdRoomId != null) ...[
                       const Text("Room created!"),
                       QrImageView(
-                        data: _generateRoomLink(_createdRoomId!),
+                        data: 'sccapp://chat?room=$_createdRoomId',
                         size: 160,
                         backgroundColor: Colors.white,
                       ),
