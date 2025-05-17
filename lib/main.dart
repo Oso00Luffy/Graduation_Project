@@ -79,7 +79,7 @@ class MyApp extends StatelessWidget {
           colorScheme: const ColorScheme.dark(
             primary: Color(0xFF2196F3),
             secondary: Color(0xFF03A9F4),
-          ).copyWith(background: const Color(0xFF0A2540)),
+          ).copyWith(surface: const Color(0xFF0A2540)),
         );
       case 'Sepia':
         return ThemeData.light().copyWith(
@@ -97,7 +97,7 @@ class MyApp extends StatelessWidget {
           colorScheme: const ColorScheme.light(
             primary: Color(0xFF8B6F43),
             secondary: Color(0xFFC9B18B),
-          ).copyWith(background: const Color(0xFFF5E9DA)),
+          ).copyWith(surface: const Color(0xFFF5E9DA)),
         );
       default:
         return ThemeData.light();
@@ -113,18 +113,15 @@ class MyApp extends StatelessWidget {
       scaffoldBackgroundColor: const Color(0xFF181A20),
       canvasColor: const Color(0xFF1A1A1A),
       cardColor: const Color(0xFF232323),
-      dialogBackgroundColor: const Color(0xFF232323),
       primaryColor: aquaBlue,
       colorScheme: ColorScheme.dark(
         primary: aquaBlue,
         secondary: aquaBlue,
         surface: const Color(0xFF232323),
-        background: const Color(0xFF181A20),
         error: const Color(0xFFcf6679),
         onPrimary: const Color(0xFF181A20),
         onSecondary: const Color(0xFF181A20),
         onSurface: const Color(0xFFE0E0E0),
-        onBackground: const Color(0xFFE0E0E0),
         onError: const Color(0xFF232323),
         brightness: Brightness.dark,
       ),
@@ -151,7 +148,7 @@ class MyApp extends StatelessWidget {
         ),
         hintStyle: const TextStyle(color: Color(0xFF888888)),
         labelStyle: const TextStyle(color: Color(0xFFB0B0B0)),
-      ),
+      ), dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF232323)),
     );
 
     return MaterialApp(

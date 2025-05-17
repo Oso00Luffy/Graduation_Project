@@ -5,6 +5,8 @@ import 'package:flutter/services.dart'; // For clipboard functionality
 import '../services/recent_keys_service.dart';
 
 class ProfileKeysSection extends StatefulWidget {
+  const ProfileKeysSection({super.key});
+
   @override
   _ProfileKeysSectionState createState() => _ProfileKeysSectionState();
 }

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart';
 import '../services/image_encryption_service.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 // Platform-specific helper for downloading on web
@@ -106,7 +106,7 @@ class _EncryptImageScreenState extends State<EncryptImageScreen> {
     if (kIsWeb) {
       await saveImageWeb(_encryptedImageBytes!, 'encrypted_image.png');
     } else {
-      final result = await ImageGallerySaver.saveImage(
+      final result = await ImageGallerySaverPlus.saveImage(
         _encryptedImageBytes!,
         quality: 100,
         name: "encrypted_image",
