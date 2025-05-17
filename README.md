@@ -190,7 +190,7 @@ This project is part of an academic graduation project and is not licensed for c
 ## 🌐 Links
 
 - 🎓 University: Tafila Technical University
-- 📜 Supervisor: Dr. Eman Qutaishat
+- 📜 Supervisor: Dr. Eman
 - 📁 Repository: [https://github.com/Oso00Luffy/Graduation_Project](https://github.com/Oso00Luffy/Graduation_Project)
 
 ---
