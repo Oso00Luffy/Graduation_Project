@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'screens/firebase_options.dart';
 import 'theme/theme_provider.dart';
+import 'package:pointycastle/pointycastle.dart';
 
 // Screens
 import 'screens/login_screen.dart';
@@ -32,7 +33,6 @@ void main() async {
       webProvider: ReCaptchaV3Provider('6Ldtcy8rAAAAAIX6hXKOI5o_I7V3ATc7KoknTO8v'),
     );
   }
-
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeProvider()..loadThemePreference(),

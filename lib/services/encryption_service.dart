@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:math';
 import 'package:pointycastle/export.dart';
 import 'package:basic_utils/basic_utils.dart';
+import 'package:pointycastle/api.dart';
 
 class EncryptionService {
   // ---- Secure Random ----
@@ -22,26 +23,32 @@ class EncryptionService {
     return padded.sublist(0, padded.length - pad);
   }
 
-  // ---- AES (CBC, PKCS7) ----
+  // ---- AES (ECB, PKCS7) ---- NO IV
   static String generateAesKey() => base64.encode(_randomBytes(32));
-  static String generateAesIv() => base64.encode(_randomBytes(16));
 
-  static String encryptAes(String plaintext, String base64Key, String base64Iv) {
+  static String encryptAes(String plaintext, String base64Key) {
     final key = base64.decode(base64Key);
-    final iv = base64.decode(base64Iv);
     final padded = pkcs7Pad(Uint8List.fromList(utf8.encode(plaintext)));
-    final cipher = CBCBlockCipher(AESEngine())
-      ..init(true, ParametersWithIV(KeyParameter(key), iv));
-    final encrypted = cipher.process(padded);
+    final cipher = AESEngine()..init(true, KeyParameter(key));
+    final encrypted = Uint8List(padded.length);
+    int offset = 0;
+    while (offset < padded.length) {
+      cipher.processBlock(padded, offset, encrypted, offset);
+      offset += cipher.blockSize;
+    }
     return base64.encode(encrypted);
   }
 
-  static String decryptAes(String base64Cipher, String base64Key, String base64Iv) {
+  static String decryptAes(String base64Cipher, String base64Key) {
     final key = base64.decode(base64Key);
-    final iv = base64.decode(base64Iv);
-    final cipher = CBCBlockCipher(AESEngine())
-      ..init(false, ParametersWithIV(KeyParameter(key), iv));
-    final decrypted = cipher.process(base64.decode(base64Cipher));
+    final cipher = AESEngine()..init(false, KeyParameter(key));
+    final encrypted = base64.decode(base64Cipher);
+    final decrypted = Uint8List(encrypted.length);
+    int offset = 0;
+    while (offset < encrypted.length) {
+      cipher.processBlock(encrypted, offset, decrypted, offset);
+      offset += cipher.blockSize;
+    }
     final unpadded = pkcs7Unpad(decrypted);
     return utf8.decode(unpadded);
   }
@@ -97,27 +104,30 @@ class EncryptionService {
     return utf8.decode(decrypted);
   }
 
-  // ---- Hybrid Encryption (AES + RSA) ----
-  // Encrypts message with AES, then encrypts AES key+IV with RSA, returns JSON
+  // ---- Hybrid Encryption (AES in ECB + RSA) ----
+  // Encrypts message with AES, then encrypts AES key with RSA, returns JSON
   static String hybridEncrypt(String plaintext, RSAPublicKey rsaPublicKey) {
     final aesKey = _randomBytes(32);
-    final aesIv = _randomBytes(16);
 
-    final cipher = CBCBlockCipher(AESEngine())
-      ..init(true, ParametersWithIV(KeyParameter(aesKey), aesIv));
+    // AES encryption (ECB, PKCS7)
     final padded = pkcs7Pad(Uint8List.fromList(utf8.encode(plaintext)));
-    final aesEncrypted = cipher.process(padded);
+    final cipher = AESEngine()..init(true, KeyParameter(aesKey));
+    final aesEncrypted = Uint8List(padded.length);
+    int offset = 0;
+    while (offset < padded.length) {
+      cipher.processBlock(padded, offset, aesEncrypted, offset);
+      offset += cipher.blockSize;
+    }
 
-    // Encrypt AES key+IV with RSA
-    final keyIvCombined = aesKey + aesIv;
+    // Encrypt AES key with RSA
     final rsaCipher = OAEPEncoding(RSAEngine())
       ..init(true, PublicKeyParameter<RSAPublicKey>(rsaPublicKey));
-    final encryptedKeyIv = rsaCipher.process(Uint8List.fromList(keyIvCombined));
+    final encryptedKey = rsaCipher.process(Uint8List.fromList(aesKey));
 
     // Output as JSON
     final result = {
       'data': base64.encode(aesEncrypted),
-      'key': base64.encode(encryptedKeyIv),
+      'key': base64.encode(encryptedKey),
     };
     return jsonEncode(result);
   }
@@ -125,18 +135,21 @@ class EncryptionService {
   static String hybridDecrypt(String hybridJson, RSAPrivateKey rsaPrivateKey) {
     final parsed = jsonDecode(hybridJson) as Map<String, dynamic>;
     final aesEncrypted = base64.decode(parsed['data']);
-    final encryptedKeyIv = base64.decode(parsed['key']);
+    final encryptedKey = base64.decode(parsed['key']);
 
-    // Decrypt AES key+IV
+    // Decrypt AES key
     final rsaCipher = OAEPEncoding(RSAEngine())
       ..init(false, PrivateKeyParameter<RSAPrivateKey>(rsaPrivateKey));
-    final keyIv = rsaCipher.process(encryptedKeyIv);
-    final aesKey = keyIv.sublist(0, 32);
-    final aesIv = keyIv.sublist(32, 48);
+    final aesKey = rsaCipher.process(encryptedKey);
 
-    final cipher = CBCBlockCipher(AESEngine())
-      ..init(false, ParametersWithIV(KeyParameter(aesKey), aesIv));
-    final decrypted = cipher.process(aesEncrypted);
+    // AES decryption (ECB, PKCS7)
+    final cipher = AESEngine()..init(false, KeyParameter(aesKey));
+    final decrypted = Uint8List(aesEncrypted.length);
+    int offset = 0;
+    while (offset < aesEncrypted.length) {
+      cipher.processBlock(aesEncrypted, offset, decrypted, offset);
+      offset += cipher.blockSize;
+    }
     final unpadded = pkcs7Unpad(decrypted);
     return utf8.decode(unpadded);
   }
@@ -161,7 +174,7 @@ class EncryptionService {
   static String _applyEncryption(String data, String algo, Map<String, dynamic> params) {
     switch (algo) {
       case "AES":
-        return encryptAes(data, params['aesKey'], params['aesIv']);
+        return encryptAes(data, params['aesKey']);
       case "ChaCha20":
         return encryptChacha20(data, params['chachaKey'], params['chachaNonce']);
       case "RSA":
@@ -189,7 +202,7 @@ class EncryptionService {
   static String _applyDecryption(String data, String algo, Map<String, dynamic> params) {
     switch (algo) {
       case "AES":
-        return decryptAes(data, params['aesKey'], params['aesIv']);
+        return decryptAes(data, params['aesKey']);
       case "ChaCha20":
         return decryptChacha20(data, params['chachaKey'], params['chachaNonce']);
       case "RSA":
