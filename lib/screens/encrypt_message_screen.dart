@@ -17,6 +17,7 @@ class EncryptMessageScreen extends StatefulWidget {
 class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _aesKeyController = TextEditingController();
+  final TextEditingController _aesIvController = TextEditingController();
   final TextEditingController _chachaKeyController = TextEditingController();
   final TextEditingController _chachaNonceController = TextEditingController();
   final TextEditingController _rsaPublicKeyController = TextEditingController();
@@ -33,12 +34,8 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
     'RSA',
     'ChaCha20',
     'Hybrid',
-    'Double Encryption'
   ];
   late String _selectedEncryptionType;
-
-  String _firstAlgo = 'AES';
-  String _secondAlgo = 'RSA';
 
   final List<String> _disguiseTypes = [
     'None',
@@ -61,6 +58,7 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
   void dispose() {
     _messageController.dispose();
     _aesKeyController.dispose();
+    _aesIvController.dispose();
     _chachaKeyController.dispose();
     _chachaNonceController.dispose();
     _rsaPublicKeyController.dispose();
@@ -68,9 +66,12 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
     super.dispose();
   }
 
-  void _generateAesKey() {
+  void _generateAesKeyAndIv() {
+    final key = EncryptionService.generateAesKey();
+    final iv = EncryptionService.generateHybridKeys()['aesIv']!;
     setState(() {
-      _aesKeyController.text = EncryptionService.generateAesKey();
+      _aesKeyController.text = key;
+      _aesIvController.text = iv;
     });
   }
 
@@ -97,6 +98,7 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
 
   void _clearKeys() {
     _aesKeyController.clear();
+    _aesIvController.clear();
     _chachaKeyController.clear();
     _chachaNonceController.clear();
     _rsaPublicKeyController.clear();
@@ -106,6 +108,7 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
   Future<void> _encryptMessage() async {
     final message = _messageController.text.trim();
     final aesKey = _aesKeyController.text.trim();
+    final aesIv = _aesIvController.text.trim();
     final chachaKey = _chachaKeyController.text.trim();
     final chachaNonce = _chachaNonceController.text.trim();
     final rsaPublicKeyPem = _rsaPublicKeyController.text.trim();
@@ -125,10 +128,10 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
       if (message.isEmpty) {
         result = 'Please enter a message to encrypt.';
       } else if (_selectedEncryptionType == 'AES') {
-        if (aesKey.isEmpty) {
-          result = 'Please generate or enter AES key.';
+        if (aesKey.isEmpty || aesIv.isEmpty) {
+          result = 'Please generate or enter AES key and IV.';
         } else {
-          result = EncryptionService.encryptAes(message, aesKey);
+          result = EncryptionService.encryptAes(message, aesKey, ivBase64: aesIv);
         }
       } else if (_selectedEncryptionType == 'RSA') {
         if (rsaPublicKeyPem.isEmpty) {
@@ -153,40 +156,17 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
           result = EncryptionService.encryptChacha20(message, chachaKey, chachaNonce);
         }
       } else if (_selectedEncryptionType == 'Hybrid') {
-        if (rsaPublicKeyPem.isEmpty) {
-          result = 'Please generate or enter RSA public key for hybrid encryption.';
+        if (aesKey.isEmpty || aesIv.isEmpty || chachaKey.isEmpty || chachaNonce.isEmpty) {
+          result = 'Please generate or enter AES key, IV, ChaCha20 key and nonce for hybrid encryption.';
         } else {
-          RSAPublicKey? publicKey;
-          try {
-            publicKey = CryptoUtils.rsaPublicKeyFromPem(rsaPublicKeyPem);
-          } catch (_) {
-            publicKey = null;
-          }
-          if (publicKey == null) {
-            result = 'Invalid public key format.';
-          } else {
-            result = EncryptionService.hybridEncrypt(message, publicKey);
-          }
+          result = EncryptionService.hybridEncrypt(
+            message,
+            aesKey,
+            chachaKey,
+            ivBase64: aesIv,
+            nonceBase64: chachaNonce,
+          );
         }
-      } else if (_selectedEncryptionType == 'Double Encryption') {
-        RSAPublicKey? rsaPublic;
-        try {
-          rsaPublic = CryptoUtils.rsaPublicKeyFromPem(rsaPublicKeyPem);
-        } catch (_) {
-          rsaPublic = null;
-        }
-        final params = {
-          'aesKey': aesKey,
-          'chachaKey': chachaKey,
-          'chachaNonce': chachaNonce,
-          'rsaPublicKey': rsaPublic,
-        };
-        result = EncryptionService.doubleEncrypt(
-          plaintext: message,
-          first: _firstAlgo,
-          second: _secondAlgo,
-          params: params,
-        );
       } else {
         result = 'Unknown encryption type.';
       }
@@ -314,7 +294,6 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
     final isRSA = _selectedEncryptionType == 'RSA';
     final isChaCha20 = _selectedEncryptionType == 'ChaCha20';
     final isHybrid = _selectedEncryptionType == 'Hybrid';
-    final isDouble = _selectedEncryptionType == 'Double Encryption';
 
     Color generateBtnColor = isDark ? Colors.white : Colors.black;
     Color generateBtnTextColor = isDark ? Colors.black : Colors.white;
@@ -405,53 +384,7 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                             ))
                                 .toList(),
                           ),
-                          if (isDouble) ...[
-                            const SizedBox(height: 14),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: DropdownButtonFormField<String>(
-                                    decoration: InputDecoration(
-                                      labelText: 'First Algorithm',
-                                      labelStyle: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w500),
-                                    value: _firstAlgo,
-                                    onChanged: (v) {
-                                      if (v != null) setState(() => _firstAlgo = v);
-                                    },
-                                    items: ['AES', 'RSA', 'ChaCha20', 'Hybrid']
-                                        .map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(color: isDark ? Colors.white : Colors.black87))))
-                                        .toList(),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: DropdownButtonFormField<String>(
-                                    decoration: InputDecoration(
-                                      labelText: 'Second Algorithm',
-                                      labelStyle: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w500),
-                                    value: _secondAlgo,
-                                    onChanged: (v) {
-                                      if (v != null) setState(() => _secondAlgo = v);
-                                    },
-                                    items: ['AES', 'RSA', 'ChaCha20', 'Hybrid']
-                                        .map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(color: isDark ? Colors.white : Colors.black87))))
-                                        .toList(),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                          if (isAES || isDouble) ...[
+                          if (isAES || isHybrid) ...[
                             const SizedBox(height: 16),
                             Row(
                               children: [
@@ -465,8 +398,18 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
+                                Expanded(
+                                  child: CustomTextField(
+                                    controller: _aesIvController,
+                                    hintText: 'AES IV (base64, 24 chars)',
+                                    isPassword: false,
+                                    minLines: 1,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
                                 ElevatedButton(
-                                  onPressed: _generateAesKey,
+                                  onPressed: _generateAesKeyAndIv,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: generateBtnColor,
                                     foregroundColor: generateBtnTextColor,
@@ -482,7 +425,7 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                               ],
                             ),
                           ],
-                          if (isChaCha20 || isDouble) ...[
+                          if (isChaCha20 || isHybrid) ...[
                             const SizedBox(height: 16),
                             Row(
                               children: [
@@ -523,7 +466,7 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                               ],
                             ),
                           ],
-                          if (isRSA || isHybrid || isDouble) ...[
+                          if (isRSA) ...[
                             const SizedBox(height: 16),
                             Row(
                               children: [

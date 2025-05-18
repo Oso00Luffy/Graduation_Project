@@ -17,9 +17,9 @@ class DecryptMessageScreen extends StatefulWidget {
 class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _aesKeyController = TextEditingController();
+  final TextEditingController _aesIvController = TextEditingController();
   final TextEditingController _chachaKeyController = TextEditingController();
   final TextEditingController _chachaNonceController = TextEditingController();
-  final TextEditingController _rsaPublicKeyController = TextEditingController();
   final TextEditingController _rsaPrivateKeyController = TextEditingController();
 
   String? _decryptedMessage;
@@ -33,12 +33,8 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     'RSA',
     'ChaCha20',
     'Hybrid',
-    'Double Encryption'
   ];
   late String _selectedEncryptionType;
-
-  String _firstAlgo = 'AES';
-  String _secondAlgo = 'RSA';
 
   final List<String> _disguiseTypes = [
     'None',
@@ -61,18 +57,18 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
   void dispose() {
     _messageController.dispose();
     _aesKeyController.dispose();
+    _aesIvController.dispose();
     _chachaKeyController.dispose();
     _chachaNonceController.dispose();
-    _rsaPublicKeyController.dispose();
     _rsaPrivateKeyController.dispose();
     super.dispose();
   }
 
   void _clearKeys() {
     _aesKeyController.clear();
+    _aesIvController.clear();
     _chachaKeyController.clear();
     _chachaNonceController.clear();
-    _rsaPublicKeyController.clear();
     _rsaPrivateKeyController.clear();
   }
 
@@ -90,7 +86,7 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     String disguised = _messageController.text.trim();
     String extracted = disguised;
 
-    // 1. Extract disguised encrypted
+    // Extract the ciphertext from the disguise if needed
     if (_selectedDisguiseType != 'None') {
       extracted = _extractDisguised(disguised, _selectedDisguiseType, password: _disguisePassword);
       if (extracted.isEmpty) {
@@ -104,8 +100,8 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
       }
     }
 
-    // 2. Proceed with decryption as usual
     final aesKey = _aesKeyController.text.trim();
+    final aesIv = _aesIvController.text.trim();
     final chachaKey = _chachaKeyController.text.trim();
     final chachaNonce = _chachaNonceController.text.trim();
     final rsaPrivateKeyPem = _rsaPrivateKeyController.text.trim();
@@ -144,40 +140,17 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
           result = EncryptionService.decryptChacha20(encrypted, chachaKey, chachaNonce);
         }
       } else if (_selectedEncryptionType == 'Hybrid') {
-        if (rsaPrivateKeyPem.isEmpty) {
-          result = 'Please enter RSA private key for hybrid decryption.';
+        if (aesKey.isEmpty || aesIv.isEmpty || chachaKey.isEmpty || chachaNonce.isEmpty) {
+          result = 'Please enter AES key, IV, ChaCha20 key and nonce for hybrid decryption.';
         } else {
-          RSAPrivateKey? privateKey;
-          try {
-            privateKey = CryptoUtils.rsaPrivateKeyFromPem(rsaPrivateKeyPem);
-          } catch (_) {
-            privateKey = null;
-          }
-          if (privateKey == null) {
-            result = 'Invalid private key format.';
-          } else {
-            result = EncryptionService.hybridDecrypt(encrypted, privateKey);
-          }
+          result = EncryptionService.hybridDecrypt(
+            encrypted,
+            aesKey,
+            chachaKey,
+            ivBase64: aesIv,
+            nonceBase64: chachaNonce,
+          );
         }
-      } else if (_selectedEncryptionType == 'Double Encryption') {
-        RSAPrivateKey? rsaPrivate;
-        try {
-          rsaPrivate = CryptoUtils.rsaPrivateKeyFromPem(rsaPrivateKeyPem);
-        } catch (_) {
-          rsaPrivate = null;
-        }
-        final params = {
-          'aesKey': aesKey,
-          'chachaKey': chachaKey,
-          'chachaNonce': chachaNonce,
-          'rsaPrivateKey': rsaPrivate,
-        };
-        result = EncryptionService.doubleDecrypt(
-          ciphertext: encrypted,
-          first: _firstAlgo,
-          second: _secondAlgo,
-          params: params,
-        );
       } else {
         result = 'Unknown encryption type.';
       }
@@ -241,7 +214,6 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     final isRSA = _selectedEncryptionType == 'RSA';
     final isChaCha20 = _selectedEncryptionType == 'ChaCha20';
     final isHybrid = _selectedEncryptionType == 'Hybrid';
-    final isDouble = _selectedEncryptionType == 'Double Encryption';
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -347,53 +319,7 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
                               decoration: const InputDecoration(labelText: "Spam Password"),
                               onChanged: (v) => _disguisePassword = v,
                             ),
-                          if (isDouble) ...[
-                            const SizedBox(height: 14),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: DropdownButtonFormField<String>(
-                                    decoration: InputDecoration(
-                                      labelText: 'First Algorithm',
-                                      labelStyle: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w500),
-                                    value: _firstAlgo,
-                                    onChanged: (v) {
-                                      if (v != null) setState(() => _firstAlgo = v);
-                                    },
-                                    items: ['AES', 'RSA', 'ChaCha20', 'Hybrid']
-                                        .map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(color: isDark ? Colors.white : Colors.black87))))
-                                        .toList(),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: DropdownButtonFormField<String>(
-                                    decoration: InputDecoration(
-                                      labelText: 'Second Algorithm',
-                                      labelStyle: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w500),
-                                    value: _secondAlgo,
-                                    onChanged: (v) {
-                                      if (v != null) setState(() => _secondAlgo = v);
-                                    },
-                                    items: ['AES', 'RSA', 'ChaCha20', 'Hybrid']
-                                        .map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(color: isDark ? Colors.white : Colors.black87))))
-                                        .toList(),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                          if (isAES || isDouble) ...[
+                          if (isAES || isHybrid) ...[
                             const SizedBox(height: 16),
                             Row(
                               children: [
@@ -406,10 +332,20 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
                                     maxLines: 1,
                                   ),
                                 ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: CustomTextField(
+                                    controller: _aesIvController,
+                                    hintText: 'AES IV (base64, 24 chars)',
+                                    isPassword: false,
+                                    minLines: 1,
+                                    maxLines: 1,
+                                  ),
+                                ),
                               ],
                             ),
                           ],
-                          if (isChaCha20 || isDouble) ...[
+                          if (isChaCha20 || isHybrid) ...[
                             const SizedBox(height: 16),
                             Row(
                               children: [
@@ -435,7 +371,7 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
                               ],
                             ),
                           ],
-                          if (isRSA || isHybrid || isDouble) ...[
+                          if (isRSA) ...[
                             const SizedBox(height: 16),
                             Row(
                               children: [
@@ -458,7 +394,6 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
                             ),
                           ],
                           const SizedBox(height: 24),
-
                           if (_errorMessage != null)
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -493,7 +428,6 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
                                 ],
                               ),
                             ),
-
                           Container(
                             width: double.infinity,
                             height: 52,
