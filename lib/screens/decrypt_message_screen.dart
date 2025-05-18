@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:pointycastle/asymmetric/api.dart';
 import 'package:basic_utils/basic_utils.dart';
 import '../services/encryption_service.dart';
+import '../services/innocent_encoding_service.dart';
 import '../widgets/custom_text_field.dart';
 import 'encrypt_message_screen.dart';
 
@@ -39,6 +40,17 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
   String _firstAlgo = 'AES';
   String _secondAlgo = 'RSA';
 
+  final List<String> _disguiseTypes = [
+    'None',
+    'Spam',
+    'Fake Spreadsheet',
+    'Fake PGP',
+    'Fake Russian',
+    'Space'
+  ];
+  String _selectedDisguiseType = 'None';
+  String? _disguisePassword = '';
+
   @override
   void initState() {
     super.initState();
@@ -65,13 +77,6 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
   }
 
   Future<void> _decryptMessage() async {
-    final encrypted = _messageController.text.trim();
-    final aesKey = _aesKeyController.text.trim();
-    final chachaKey = _chachaKeyController.text.trim();
-    final chachaNonce = _chachaNonceController.text.trim();
-    final rsaPrivateKeyPem = _rsaPrivateKeyController.text.trim();
-    String result;
-
     setState(() {
       _isLoading = true;
       _decryptedMessage = null;
@@ -81,6 +86,31 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     });
 
     await Future.delayed(const Duration(milliseconds: 100));
+
+    String disguised = _messageController.text.trim();
+    String extracted = disguised;
+
+    // 1. Extract disguised encrypted
+    if (_selectedDisguiseType != 'None') {
+      extracted = _extractDisguised(disguised, _selectedDisguiseType, password: _disguisePassword);
+      if (extracted.isEmpty) {
+        setState(() {
+          _decryptedMessage = null;
+          _isLoading = false;
+          _errorMessage = "Could not extract encrypted message from disguise.";
+          _showSuccess = false;
+        });
+        return;
+      }
+    }
+
+    // 2. Proceed with decryption as usual
+    final aesKey = _aesKeyController.text.trim();
+    final chachaKey = _chachaKeyController.text.trim();
+    final chachaNonce = _chachaNonceController.text.trim();
+    final rsaPrivateKeyPem = _rsaPrivateKeyController.text.trim();
+    String result;
+    final encrypted = extracted;
 
     try {
       if (encrypted.isEmpty) {
@@ -164,6 +194,23 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     });
   }
 
+  String _extractDisguised(String disguised, String disguiseType, {String? password}) {
+    switch (disguiseType) {
+      case 'Spam':
+        return InnocentEncodingService.decodeFromSpam(disguised) ?? '';
+      case 'Fake Spreadsheet':
+        return InnocentEncodingService.decodeFromSpreadsheet(disguised) ?? '';
+      case 'Fake PGP':
+        return InnocentEncodingService.decodeFromFakePGP(disguised) ?? '';
+      case 'Fake Russian':
+        return InnocentEncodingService.decodeFromFakeRussian(disguised) ?? '';
+      case 'Space':
+        return InnocentEncodingService.decodeFromSpace(disguised) ?? '';
+      default:
+        return disguised;
+    }
+  }
+
   void _copyToClipboard() async {
     if (_decryptedMessage != null) {
       await Clipboard.setData(ClipboardData(text: _decryptedMessage!));
@@ -239,7 +286,7 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
                           const SizedBox(height: 18),
                           CustomTextField(
                             controller: _messageController,
-                            hintText: 'Encrypted message (base64 or JSON)',
+                            hintText: 'Encrypted message (base64 or JSON or disguised)',
                             minLines: 2,
                             maxLines: 6,
                           ),
@@ -282,6 +329,24 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
                             ))
                                 .toList(),
                           ),
+                          const SizedBox(height: 14),
+                          DropdownButtonFormField<String>(
+                            value: _selectedDisguiseType,
+                            onChanged: (v) {
+                              if (v != null) setState(() => _selectedDisguiseType = v);
+                            },
+                            items: _disguiseTypes
+                                .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                                .toList(),
+                            decoration: const InputDecoration(
+                              labelText: 'Disguise Type',
+                            ),
+                          ),
+                          if (_selectedDisguiseType == 'Spam (with password)')
+                            TextField(
+                              decoration: const InputDecoration(labelText: "Spam Password"),
+                              onChanged: (v) => _disguisePassword = v,
+                            ),
                           if (isDouble) ...[
                             const SizedBox(height: 14),
                             Row(

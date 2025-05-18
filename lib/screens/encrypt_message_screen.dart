@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:pointycastle/asymmetric/api.dart';
 import 'package:basic_utils/basic_utils.dart';
 import '../services/encryption_service.dart';
+import '../services/innocent_encoding_service.dart';
 import '../widgets/custom_text_field.dart';
 import 'decrypt_message_screen.dart';
 
@@ -38,6 +39,17 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
 
   String _firstAlgo = 'AES';
   String _secondAlgo = 'RSA';
+
+  final List<String> _disguiseTypes = [
+    'None',
+    'Spam',
+    'Fake Spreadsheet',
+    'Fake PGP',
+    'Fake Russian',
+    'Space'
+  ];
+  String _selectedDisguiseType = 'None';
+  String? _disguisePassword = '';
 
   @override
   void initState() {
@@ -189,6 +201,87 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
       _errorMessage =
       (result.startsWith('Encryption error:') || result.startsWith('Please')) ? result : null;
     });
+
+    if (_showSuccess && _encryptedMessage != null) {
+      await _askForDisguiseAndApply();
+    }
+  }
+
+  Future<void> _askForDisguiseAndApply() async {
+    String tempDisguiseType = _selectedDisguiseType;
+    String? tempPassword = _disguisePassword;
+    final passwordController = TextEditingController(text: tempPassword);
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text("Disguise Encrypted Message"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: tempDisguiseType,
+                    onChanged: (v) {
+                      if (v != null) setStateDialog(() => tempDisguiseType = v);
+                    },
+                    items: _disguiseTypes
+                        .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                        .toList(),
+                    decoration: const InputDecoration(labelText: "Disguise Type"),
+                  ),
+                  if (tempDisguiseType == 'Spam (with password)')
+                    TextField(
+                      controller: passwordController,
+                      decoration: const InputDecoration(labelText: "Spam Password"),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedDisguiseType = tempDisguiseType;
+                      _disguisePassword = passwordController.text;
+                      _encryptedMessage = _applyDisguise(
+                        _encryptedMessage!,
+                        tempDisguiseType,
+                        password: passwordController.text,
+                      );
+                    });
+                    Navigator.of(ctx).pop();
+                  },
+                  child: const Text("Apply"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _applyDisguise(String message, String disguiseType, {String? password}) {
+    switch (disguiseType) {
+      case 'Spam':
+        return InnocentEncodingService.encodeAsSpam(message);
+      case 'Fake Spreadsheet':
+        return InnocentEncodingService.encodeAsSpreadsheet(message);
+      case 'Fake PGP':
+        return InnocentEncodingService.encodeAsFakePGP(message);
+      case 'Fake Russian':
+        return InnocentEncodingService.encodeAsFakeRussian(message);
+      case 'Space':
+        return InnocentEncodingService.encodeAsSpace(message);
+      default:
+        return message;
+    }
   }
 
   void _copyToClipboard() async {
