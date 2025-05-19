@@ -338,7 +338,7 @@ class HomeContent extends StatelessWidget {
                   theme,
                   Icons.image,
                   'Encrypt Image',
-                  EncryptImageScreen(),
+                  ImageEncryptionScreen(),
                   isWide,
                 ),
                 _buildQuickActionButton(

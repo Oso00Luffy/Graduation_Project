@@ -1,32 +1,65 @@
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:uuid/uuid.dart';
 
 class ChatRoomService {
   static final _firestore = FirebaseFirestore.instance;
 
-  // Create a chat room and return its ID
-  static Future<String> createRoom() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception("Not authenticated");
-
-    final roomId = const Uuid().v4(); // Random UUID
-    await _firestore.collection('chat_rooms').doc(roomId).set({
-      'createdBy': user.uid,
+  static Future<Map<String, String>> createRoom({
+    required String type, // 'private' or 'group'
+    required String name,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser!;
+    final roomId = _firestore.collection('chat_rooms').doc().id;
+    final joinToken = _generateJoinToken();
+    final members = [user.uid];
+    final allowedUids = type == 'private' ? [user.uid] : [];
+    final data = {
+      'hostId': user.uid,
       'createdAt': FieldValue.serverTimestamp(),
-      'members': [user.uid],
-    });
-    return roomId;
+      'members': members,
+      'type': type,
+      'name': name,
+      'pendingRequests': [],
+      'allowedUids': allowedUids,
+      'qrJoinToken': joinToken,
+    };
+    await _firestore.collection('chat_rooms').doc(roomId).set(data);
+    return {'roomId': roomId, 'joinToken': joinToken};
   }
 
-  // Join a room by roomId (add user to members)
-  static Future<void> joinRoom(String roomId) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception("Not authenticated");
-
-    final roomRef = _firestore.collection('chat_rooms').doc(roomId);
-    await roomRef.update({
-      'members': FieldValue.arrayUnion([user.uid]),
+  static Future<void> requestJoinGroupRoom(String roomId) async {
+    final user = FirebaseAuth.instance.currentUser!;
+    final doc = _firestore.collection('chat_rooms').doc(roomId);
+    await doc.update({
+      'pendingRequests': FieldValue.arrayUnion([user.uid])
     });
+  }
+
+  static Future<void> approveMember(String roomId, String uid) async {
+    final doc = _firestore.collection('chat_rooms').doc(roomId);
+    await doc.update({
+      'pendingRequests': FieldValue.arrayRemove([uid]),
+      'members': FieldValue.arrayUnion([uid]),
+      'allowedUids': FieldValue.arrayUnion([uid]),
+    });
+  }
+
+  static Future<void> joinPrivateRoom(String roomId, String joinToken) async {
+    final user = FirebaseAuth.instance.currentUser!;
+    final doc = await _firestore.collection('chat_rooms').doc(roomId).get();
+    final data = doc.data()!;
+    if (data['type'] != 'private') throw Exception('Not a private room');
+    if (data['members'].length >= 2) throw Exception('Room full');
+    if (data['qrJoinToken'] != joinToken) throw Exception('Invalid token');
+    await doc.reference.update({
+      'members': FieldValue.arrayUnion([user.uid]),
+      'allowedUids': FieldValue.arrayUnion([user.uid]),
+    });
+  }
+
+  static String _generateJoinToken() {
+    final rand = Random.secure();
+    return List.generate(24, (_) => rand.nextInt(36).toRadixString(36)).join();
   }
 }

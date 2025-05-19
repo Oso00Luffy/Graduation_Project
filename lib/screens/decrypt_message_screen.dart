@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pointycastle/asymmetric/api.dart';
 import 'package:basic_utils/basic_utils.dart';
 import '../services/encryption_service.dart';
+import '../services/image_encryption_service.dart';
 import '../services/innocent_encoding_service.dart';
 import '../widgets/custom_text_field.dart';
 import 'encrypt_message_screen.dart';
@@ -22,6 +24,10 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
   final TextEditingController _chachaNonceController = TextEditingController();
   final TextEditingController _rsaPrivateKeyController = TextEditingController();
 
+  // AES+RSA hybrid fields
+  final TextEditingController _aesRsaEncryptedAesKeyController = TextEditingController();
+  final TextEditingController _aesRsaEncryptedMessageController = TextEditingController();
+
   String? _decryptedMessage;
   bool _isLoading = false;
   bool _copied = false;
@@ -33,6 +39,7 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     'RSA',
     'ChaCha20',
     'Hybrid',
+    'AES+RSA'
   ];
   late String _selectedEncryptionType;
 
@@ -61,6 +68,8 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     _chachaKeyController.dispose();
     _chachaNonceController.dispose();
     _rsaPrivateKeyController.dispose();
+    _aesRsaEncryptedAesKeyController.dispose();
+    _aesRsaEncryptedMessageController.dispose();
     super.dispose();
   }
 
@@ -70,6 +79,8 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     _chachaKeyController.clear();
     _chachaNonceController.clear();
     _rsaPrivateKeyController.clear();
+    _aesRsaEncryptedAesKeyController.clear();
+    _aesRsaEncryptedMessageController.clear();
   }
 
   Future<void> _decryptMessage() async {
@@ -105,11 +116,13 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     final chachaKey = _chachaKeyController.text.trim();
     final chachaNonce = _chachaNonceController.text.trim();
     final rsaPrivateKeyPem = _rsaPrivateKeyController.text.trim();
+    final aesRsaEncryptedAesKeyText = _aesRsaEncryptedAesKeyController.text.trim();
+    final aesRsaEncryptedMessageText = _aesRsaEncryptedMessageController.text.trim();
     String result;
     final encrypted = extracted;
 
     try {
-      if (encrypted.isEmpty) {
+      if (encrypted.isEmpty && _selectedEncryptionType != 'AES+RSA') {
         result = 'Please enter the encrypted message.';
       } else if (_selectedEncryptionType == 'AES') {
         if (aesKey.isEmpty) {
@@ -150,6 +163,32 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
             ivBase64: aesIv,
             nonceBase64: chachaNonce,
           );
+        }
+      } else if (_selectedEncryptionType == 'AES+RSA') {
+        // AES+RSA Hybrid decryption
+        if (aesRsaEncryptedAesKeyText.isEmpty ||
+            aesRsaEncryptedMessageText.isEmpty ||
+            rsaPrivateKeyPem.isEmpty) {
+          result = 'Please provide encrypted AES key, encrypted message, and RSA private key for AES+RSA decryption.';
+        } else {
+          try {
+            final encryptedAesKey = base64Decode(aesRsaEncryptedAesKeyText);
+            final encryptedMessage = base64Decode(aesRsaEncryptedMessageText);
+            RSAPrivateKey? privateKey;
+            try {
+              privateKey = CryptoUtils.rsaPrivateKeyFromPem(rsaPrivateKeyPem);
+            } catch (_) {
+              privateKey = null;
+            }
+            if (privateKey == null) {
+              result = 'Invalid private key format for AES+RSA.';
+            } else {
+              // You must implement this function in EncryptionService!
+              result = ImageEncryptionService.decryptAesRsa(encryptedMessage, encryptedAesKey, privateKey);
+            }
+          } catch (e) {
+            result = 'AES+RSA decryption error: $e';
+          }
         }
       } else {
         result = 'Unknown encryption type.';
@@ -200,7 +239,9 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     if (_decryptedMessage != null) return 2;
     if (_aesKeyController.text.isNotEmpty ||
         _chachaKeyController.text.isNotEmpty ||
-        _rsaPrivateKeyController.text.isNotEmpty) return 1;
+        _rsaPrivateKeyController.text.isNotEmpty ||
+        _aesRsaEncryptedAesKeyController.text.isNotEmpty ||
+        _aesRsaEncryptedMessageController.text.isNotEmpty) return 1;
     return 0;
   }
 
@@ -214,6 +255,7 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     final isRSA = _selectedEncryptionType == 'RSA';
     final isChaCha20 = _selectedEncryptionType == 'ChaCha20';
     final isHybrid = _selectedEncryptionType == 'Hybrid';
+    final isAESRSA = _selectedEncryptionType == 'AES+RSA';
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -385,6 +427,33 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
                                 const Spacer(),
                               ],
                             ),
+                            CustomTextField(
+                              controller: _rsaPrivateKeyController,
+                              hintText: 'Paste your RSA Private Key here (PEM format)',
+                              isPassword: false,
+                              minLines: 3,
+                              maxLines: 8,
+                            ),
+                          ],
+                          if (isAESRSA) ...[
+                            const SizedBox(height: 16),
+                            CustomTextField(
+                              controller: _aesRsaEncryptedAesKeyController,
+                              hintText: 'Encrypted AES Key (Base64)',
+                              isPassword: false,
+                              minLines: 2,
+                              maxLines: 4,
+                              // Add copy/paste as you wish, e.g. via suffixIcon if supported by your CustomTextField
+                            ),
+                            const SizedBox(height: 12),
+                            CustomTextField(
+                              controller: _aesRsaEncryptedMessageController,
+                              hintText: 'Encrypted Message (Base64)',
+                              isPassword: false,
+                              minLines: 2,
+                              maxLines: 6,
+                            ),
+                            const SizedBox(height: 12),
                             CustomTextField(
                               controller: _rsaPrivateKeyController,
                               hintText: 'Paste your RSA Private Key here (PEM format)',

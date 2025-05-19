@@ -10,7 +10,7 @@ import 'screens/chat_room_screen.dart';
 final Map<String, WidgetBuilder> routes = {
   '/encrypt-message': (context) => EncryptMessageScreen(),
   '/decrypt-message': (context) => DecryptMessageScreen(),
-  '/encrypt-image': (context) => EncryptImageScreen(),
+  '/encrypt-image': (context) => ImageEncryptionScreen(),
   '/decrypt-image': (context) => DecryptImageScreen(),
   '/file-sender': (context) => FileSenderScreen(),
   '/chat-rooms': (context) => const ChatRoomScreen(),

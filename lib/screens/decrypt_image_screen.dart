@@ -6,8 +6,6 @@ import 'package:flutter/foundation.dart';
 import '../services/image_encryption_service.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-
-// Platform-specific helper for downloading on web
 import '../utils/web_download_helper.dart' if (dart.library.html) '../utils/web_download_helper_web.dart';
 
 class DecryptImageScreen extends StatefulWidget {
@@ -34,7 +32,7 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
 
         if (bytes.length > MAX_IMAGE_SIZE) {
           setState(() {
-            _errorMessage = '$purpose image is too large. Please pick an image under 5 MB.';
+            _errorMessage = '$purpose image is too large. Please pick an image under 20 MB.';
           });
           return;
         }
@@ -64,12 +62,13 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
       _isDecrypting = true;
       _errorMessage = null;
       _showSuccess = false;
+      _decryptedImageBytes = null;
     });
 
     try {
       final decryptedBytes = await compute(
         _performDecryption,
-        DecryptionParams(_encryptedImageBytes!, _keyImageBytes!),
+        EncryptionParams(_encryptedImageBytes!, _keyImageBytes!),
       );
 
       setState(() {
@@ -93,23 +92,23 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
     }
   }
 
-  static Uint8List _performDecryption(DecryptionParams params) {
+  static Uint8List _performDecryption(EncryptionParams params) {
     return ImageEncryptionService.decryptImageWithKey(
-      params.encryptedImageBytes,
+      params.plainImageBytes,
       params.keyImageBytes,
     );
   }
 
-  Future<void> _downloadDecryptedImage() async {
-    if (_decryptedImageBytes == null) return;
+  Future<void> _downloadImage(Uint8List? bytes, String filename) async {
+    if (bytes == null) return;
 
     if (kIsWeb) {
-      await saveImageWeb(_decryptedImageBytes!, 'decrypted_image.png');
+      await saveImageWeb(bytes, filename);
     } else {
       final result = await ImageGallerySaverPlus.saveImage(
-        _decryptedImageBytes!,
+        bytes,
         quality: 100,
-        name: "decrypted_image",
+        name: filename,
       );
       bool success = result['isSuccess'] ?? false;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -136,7 +135,7 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFfc5c7d), Color(0xFF6a82fb)],
+            colors: [Color(0xFF6a82fb), Color(0xFFfc5c7d)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -157,28 +156,28 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                       child: Column(
                         children: [
                           StepperWidget(
-                            currentStep: _decryptedImageBytes == null
-                                ? (_keyImageBytes == null ? 0 : 1)
-                                : 2,
+                            currentStep: _decryptedImageBytes != null
+                                ? 2
+                                : _keyImageBytes != null
+                                ? 1
+                                : 0,
                             steps: [
                               'Select Encrypted Image',
                               'Select Key Image',
-                              'Decrypt & Download',
+                              'Decrypt Image',
                             ],
                           ),
                           SizedBox(height: 18),
-
                           _buildImageCard(
                             title: 'Encrypted Image',
                             imageBytes: _encryptedImageBytes,
                             onPick: () => _pickImage('Encrypted', (bytes) {
                               setState(() => _encryptedImageBytes = bytes);
                             }),
-                            icon: Icons.lock_outline,
+                            icon: Icons.lock,
                             pickLabel: 'Select Encrypted Image',
                           ),
                           SizedBox(height: 16),
-
                           _buildImageCard(
                             title: 'Key Image',
                             imageBytes: _keyImageBytes,
@@ -189,13 +188,12 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                             pickLabel: 'Select Key Image',
                           ),
                           SizedBox(height: 24),
-
                           Container(
                             width: double.infinity,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(16),
                               gradient: LinearGradient(
-                                colors: [Color(0xFFfc5c7d), Color(0xFF6a82fb)],
+                                colors: [Color(0xFF43e97b), Color(0xFF38f9d7)],
                                 begin: Alignment.centerLeft,
                                 end: Alignment.centerRight,
                               ),
@@ -227,7 +225,6 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                               onPressed: _isDecrypting ? null : _decryptImage,
                             ),
                           ),
-
                           if (_errorMessage != null)
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 14.0),
@@ -245,24 +242,6 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                                 ],
                               ),
                             ),
-                          if (_showSuccess && _decryptedImageBytes != null)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 14.0),
-                              child: MaterialBanner(
-                                backgroundColor: Colors.green.shade100,
-                                content: Text(
-                                  'Image decrypted successfully!',
-                                  style: TextStyle(color: Colors.green[900], fontSize: 15),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => setState(() => _showSuccess = false),
-                                    child: Text('Dismiss'),
-                                  ),
-                                ],
-                              ),
-                            ),
-
                           if (_decryptedImageBytes != null) ...[
                             SizedBox(height: 20),
                             Card(
@@ -279,7 +258,7 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                                     Container(
                                       decoration: BoxDecoration(
                                         gradient: LinearGradient(
-                                          colors: [Color(0xFFfc5c7d), Color(0xFF6a82fb)],
+                                          colors: [Color(0xFF43e97b), Color(0xFF38f9d7)],
                                           begin: Alignment.centerLeft,
                                           end: Alignment.centerRight,
                                         ),
@@ -322,7 +301,7 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                                       child: ElevatedButton.icon(
                                         icon: Icon(Icons.download, color: Colors.white),
                                         label: Text(
-                                          'Download',
+                                          'Download Decrypted',
                                           style: TextStyle(color: Colors.white),
                                         ),
                                         style: ElevatedButton.styleFrom(
@@ -333,7 +312,7 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                                             borderRadius: BorderRadius.circular(10),
                                           ),
                                         ),
-                                        onPressed: _downloadDecryptedImage,
+                                        onPressed: () => _downloadImage(_decryptedImageBytes, "decrypted_image"),
                                       ),
                                     ),
                                   ],
@@ -374,7 +353,7 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFFfc5c7d), Color(0xFF6a82fb)],
+                  colors: [Color(0xFF6a82fb), Color(0xFFfc5c7d)],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                 ),
@@ -469,11 +448,11 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
   }
 }
 
-class DecryptionParams {
-  final Uint8List encryptedImageBytes;
+class EncryptionParams {
+  final Uint8List plainImageBytes;
   final Uint8List keyImageBytes;
 
-  DecryptionParams(this.encryptedImageBytes, this.keyImageBytes);
+  EncryptionParams(this.plainImageBytes, this.keyImageBytes);
 }
 
 /// A beautiful stepper indicator for process steps

@@ -1,0 +1,1 @@
+enum ImageEncryptionMethod { visualCrypto, aesRsa }

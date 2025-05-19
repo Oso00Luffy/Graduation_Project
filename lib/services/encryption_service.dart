@@ -167,4 +167,6 @@ class EncryptionService {
     if (key.length > length) return key.substring(0, length);
     return key.padRight(length, '0');
   }
+
 }
+
