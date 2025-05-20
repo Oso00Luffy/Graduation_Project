@@ -6,6 +6,7 @@ import '../widgets/profile_keys_section.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../widgets/change_password_dialog.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -18,13 +19,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _editingName = false;
   late TextEditingController _nameController;
   bool _deletingAccount = false;
-
-  // --- New state for extra features ---
-  int _autoLogoutMinutes = 30;
-  List<Map<String, String>> _activityLog = [
-    {"device": "Chrome (Windows)", "time": "2025-05-04 19:25"},
-    {"device": "Pixel 7 (Android)", "time": "2025-05-03 10:12"},
-  ];
 
   @override
   void initState() {
@@ -272,109 +266,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: 6),
-              ],
-            ),
-
-            // --- Collapsible 2FA ---
-            ExpansionTile(
-              leading: const Icon(Icons.shield),
-              title: const Text("Two-Factor Authentication"),
-              children: [
-                FutureBuilder<bool>(
-                  future: getTwoFactorStatus(),
-                  builder: (context, snapshot) {
-                    final enabled = snapshot.data ?? false;
-                    return ListTile(
-                      leading: Icon(
-                        enabled ? Icons.verified_user : Icons.security,
-                        color: enabled ? Colors.green : Colors.teal[600],
-                      ),
-                      title: Text(enabled ? "2FA Enabled" : "2FA Not Enabled"),
-                      subtitle: Text(
-                        enabled
-                            ? "Your account is protected by two-factor authentication."
-                            : "Your account is not protected by two-factor authentication.",
-                        style: TextStyle(color: enabled ? Colors.green[700] : Colors.red[700]),
-                      ),
-                      trailing: OutlinedButton(
-                        child: Text(enabled ? "Disable" : "Enable"),
-                        onPressed: () async {
-                          await setTwoFactorStatus(!enabled);
-                          setState(() {}); // Refresh UI
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('2FA ${!enabled ? "enabled" : "disabled"}')),
-                          );
-                        },
-                      ),
+                // ---- Change Password Option ----
+                ListTile(
+                  leading: const Icon(Icons.lock),
+                  title: const Text("Change Password"),
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => const ChangePasswordDialog(),
                     );
                   },
-                )
-              ],
-            ),
-
-            // --- Collapsible Activity Log ---
-            ExpansionTile(
-              leading: const Icon(Icons.history),
-              title: const Text("Recent Activity"),
-              children: [
-                ..._activityLog.map((log) => ListTile(
-                  leading: const Icon(Icons.devices),
-                  title: Text(log["device"]!),
-                  subtitle: Text(log["time"]!),
-                )),
-              ],
-            ),
-
-            // --- Collapsible Invite Friends ---
-            ExpansionTile(
-              leading: const Icon(Icons.group_add),
-              title: const Text("Invite Friends"),
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.link),
-                  title: const Text("Copy Invite Link"),
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: "https://yourapp.com/invite?uid=${user.uid}"));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Invite link copied!')));
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.qr_code),
-                  title: const Text("Show QR Code"),
-                  onTap: () {
-                    // You can implement qr_flutter here!
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Show QR code coming soon!')));
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.share),
-                  title: const Text("Share..."),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Share sheet coming soon!')));
-                  },
-                ),
-              ],
-            ),
-
-            // --- Collapsible Auto-Logout Timer ---
-            ExpansionTile(
-              leading: const Icon(Icons.timer),
-              title: const Text("Auto-Logout Timer"),
-              children: [
-                ListTile(
-                  title: const Text("Logout after inactivity (minutes)"),
-                  trailing: DropdownButton<int>(
-                    value: _autoLogoutMinutes,
-                    items: [5, 10, 15, 30, 60, 120]
-                        .map((m) => DropdownMenuItem(value: m, child: Text(m.toString())))
-                        .toList(),
-                    onChanged: (v) {
-                      if (v != null) setState(() => _autoLogoutMinutes = v);
-                    },
-                  ),
                 ),
               ],
             ),

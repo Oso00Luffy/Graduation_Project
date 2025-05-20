@@ -34,12 +34,22 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   List<Map<String, dynamic>> _pendingRequests = [];
   bool _loadingPending = false;
 
+  // Hosted rooms state
+  List<Map<String, dynamic>> _hostedRooms = [];
+  bool _loadingHostedRooms = false;
+
   // QR Scanner
   bool _showQRScanner = false;
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
 
   // For file/image
   final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHostedRooms();
+  }
 
   @override
   void dispose() {
@@ -78,6 +88,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           ),
         );
       }
+      // After creating room, refresh hosted rooms
+      _loadHostedRooms();
     } catch (e) {
       setState(() => _createError = 'Failed: $e');
     }
@@ -142,6 +154,37 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     _loadPendingRequests(roomId);
   }
 
+  // --------- Load Hosted Rooms ----------
+  Future<void> _loadHostedRooms() async {
+    setState(() {
+      _loadingHostedRooms = true;
+      _hostedRooms = [];
+    });
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _loadingHostedRooms = false;
+      });
+      return;
+    }
+    final snap = await FirebaseFirestore.instance
+        .collection('chat_rooms')
+        .where('hostUid', isEqualTo: user.uid)
+        .get();
+
+    setState(() {
+      _hostedRooms = snap.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'roomId': doc.id,
+          'roomName': data['name'] ?? doc.id,
+          'type': data['type'] ?? 'private',
+        };
+      }).toList();
+      _loadingHostedRooms = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -162,6 +205,60 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // ----- Hosted Rooms -----
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text("Rooms You Host", style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: _loadHostedRooms,
+                        icon: const Icon(Icons.refresh),
+                        tooltip: 'Refresh',
+                      ),
+                    ],
+                  ),
+                  if (_loadingHostedRooms)
+                    const Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  if (!_loadingHostedRooms && _hostedRooms.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: Text('No hosted rooms found.'),
+                    ),
+                  if (!_loadingHostedRooms && _hostedRooms.isNotEmpty)
+                    ..._hostedRooms.map((room) => ListTile(
+                      leading: Icon(
+                        room['type'] == 'group' ? Icons.groups : Icons.person,
+                        color: Colors.blue,
+                      ),
+                      title: Text(room['roomName']),
+                      subtitle: Text('Room ID: ${room['roomId']}'),
+                      trailing: ElevatedButton.icon(
+                        icon: const Icon(Icons.chat),
+                        label: const Text("Enter"),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatScreen(roomId: room['roomId']),
+                            ),
+                          );
+                        },
+                      ),
+                    )),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           // ----- Create Room -----
           Card(
             child: Padding(

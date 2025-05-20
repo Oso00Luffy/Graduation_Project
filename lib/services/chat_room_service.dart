@@ -15,7 +15,8 @@ class ChatRoomService {
     final members = [user.uid];
     final allowedUids = type == 'private' ? [user.uid] : [];
     final data = {
-      'hostId': user.uid,
+      'hostUid': user.uid, // <-- Ensure this field matches your hosted rooms filter!
+      'hostId': user.uid,  // (optional, for backward compatibility)
       'createdAt': FieldValue.serverTimestamp(),
       'members': members,
       'type': type,

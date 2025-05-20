@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://sccapp-c3165.web.app", "http://localhost:5000"],
+    "method": ["GET", "POST", "PUT", "DELETE", "HEAD"],
+    "maxAgeSeconds": 3600,
+    "responseHeader": ["Content-Type", "Authorization"]
+  }
+]

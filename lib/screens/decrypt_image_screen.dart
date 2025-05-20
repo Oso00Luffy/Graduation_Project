@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../services/image_encryption_service.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../utils/file_extension_utils.dart';
 import '../utils/web_download_helper.dart' if (dart.library.html) '../utils/web_download_helper_web.dart';
 
 class DecryptImageScreen extends StatefulWidget {
@@ -99,8 +100,25 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
     );
   }
 
-  Future<void> _downloadImage(Uint8List? bytes, String filename) async {
+  Future<void> _downloadImage(
+      Uint8List? bytes,
+      String filenameBase, {
+        String? originalPathOrName,
+      }) async {
     if (bytes == null) return;
+
+    // 1. Detect extension from originalPathOrName or guess from bytes
+    String ext = '';
+    if (originalPathOrName != null && originalPathOrName.isNotEmpty) {
+      ext = getFileExtension(originalPathOrName);
+    }
+    if (ext.isEmpty) {
+      ext = guessImageExtension(bytes);
+    }
+    if (ext.isEmpty) {
+      ext = '.jpg'; // fallback
+    }
+    String filename = "$filenameBase$ext";
 
     if (kIsWeb) {
       await saveImageWeb(bytes, filename);
@@ -119,6 +137,7 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
