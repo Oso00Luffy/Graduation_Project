@@ -21,7 +21,7 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     await FirebaseAppCheck.instance.activate(
-      webProvider: ReCaptchaV3Provider('6Ldtcy8rAAAAAIX6hXKOI5o_I7V3ATc7KoknTO8v'),
+      webProvider: ReCaptchaV3Provider('6LdjwEArAAAAAPLI3bvlTfHVGbB65Wo5yG4UwKIK'),
     );
   } else {
     await Firebase.initializeApp(
@@ -30,7 +30,7 @@ void main() async {
     );
     await FirebaseAppCheck.instance.activate(
       appleProvider: AppleProvider.deviceCheck,
-      webProvider: ReCaptchaV3Provider('6Ldtcy8rAAAAAIX6hXKOI5o_I7V3ATc7KoknTO8v'),
+      // You can omit webProvider here, it's only for web builds.
     );
   }
   runApp(
