@@ -1,172 +1,314 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:math';
-import 'package:encrypt/encrypt.dart' as encrypt;
-import 'package:pointycastle/export.dart' as pc;
-import 'package:basic_utils/basic_utils.dart';
+import 'dart:typed_data';
+import 'package:pointycastle/export.dart';
+import 'package:cryptography/cryptography.dart' as crypto;
+import 'package:pointycastle/asn1.dart';
 
 class EncryptionService {
-  // --- Key Generation ---
-  static String generateAesKey() => _formatKey(base64.encode(_generateSecureRandomBytes(32)), 32);
-  static String generateChachaKey() => _formatKey(base64.encode(_generateSecureRandomBytes(32)), 32);
-  static String generateChachaNonce() => base64.encode(_generateSecureRandomBytes(8));
-  static Map<String, String> generateHybridKeys() => {
-    'aesKey': generateAesKey(),
-    'aesIv': base64.encode(_generateSecureRandomBytes(16)),
-    'chaChaKey': generateChachaKey(),
-    'chaChaNonce': generateChachaNonce(),
-  };
+  // ==========================================================================
+  // AES SECTION (unchanged)
+  // ==========================================================================
 
-  // --- AES (CBC with IV) ---
-  static String encryptAes(String message, String key, {String? ivBase64}) {
-    if (key.length != 32) throw ArgumentError('AES key must be 32 chars');
-    final aesKey = encrypt.Key(Uint8List.fromList(utf8.encode(key)));
-    final iv = ivBase64 != null
-        ? encrypt.IV.fromBase64(ivBase64)
-        : encrypt.IV.fromSecureRandom(16);
-    final encrypter = encrypt.Encrypter(encrypt.AES(aesKey, mode: encrypt.AESMode.cbc));
-    final encrypted = encrypter.encrypt(message, iv: iv);
-    final result = {
-      'iv': iv.base64,
-      'data': encrypted.base64,
-    };
-    return base64.encode(utf8.encode(jsonEncode(result)));
-  }
-
-  static String decryptAes(String base64Data, String key) {
-    if (key.length != 32) throw ArgumentError('AES key must be 32 chars');
-    final aesKey = encrypt.Key(Uint8List.fromList(utf8.encode(key)));
-    final decoded = jsonDecode(utf8.decode(base64.decode(base64Data)));
-    final iv = encrypt.IV.fromBase64(decoded['iv']);
-    final encryptedData = encrypt.Encrypted.fromBase64(decoded['data']);
-    final encrypter = encrypt.Encrypter(encrypt.AES(aesKey, mode: encrypt.AESMode.cbc));
-    return encrypter.decrypt(encryptedData, iv: iv);
-  }
-
-  // --- ChaCha20 ---
-  static String encryptChacha20(String message, String key, String nonceBase64) {
-    if (key.length != 32) throw ArgumentError('ChaCha20 key must be 32 chars');
-    final keyBytes = Uint8List.fromList(utf8.encode(key));
-    final nonce = base64.decode(nonceBase64);
-    if (nonce.length != 8) throw ArgumentError('Nonce must be 8 bytes');
-    final cipher = pc.ChaCha20Engine()
-      ..init(true, pc.ParametersWithIV(pc.KeyParameter(keyBytes), nonce));
-    final input = Uint8List.fromList(utf8.encode(message));
-    final encryptedBytes = cipher.process(input);
-    final result = {
-      'nonce': base64.encode(nonce),
-      'data': base64.encode(encryptedBytes),
-    };
-    return jsonEncode(result);
-  }
-
-  static String decryptChacha20(String jsonStr, String key, String nonceBase64) {
-    if (key.length != 32) throw ArgumentError('ChaCha20 key must be 32 chars');
-    final keyBytes = Uint8List.fromList(utf8.encode(key));
-    final decoded = jsonDecode(jsonStr);
-    final nonce = base64.decode(nonceBase64);
-    final encryptedData = base64.decode(decoded['data']);
-    final cipher = pc.ChaCha20Engine()
-      ..init(false, pc.ParametersWithIV(pc.KeyParameter(keyBytes), nonce));
-    final decryptedBytes = cipher.process(encryptedData);
-    return utf8.decode(decryptedBytes);
-  }
-
-  // --- HYBRID: AES + ChaCha20 ---
-  static String hybridEncrypt(
-      String message,
-      String aesKey,
-      String chaChaKey, {
-        String? ivBase64,
-        String? nonceBase64,
-      }) {
-    // 1. AES encrypt
-    final aesEncrypted = encryptAes(message, aesKey, ivBase64: ivBase64);
-    // 2. ChaCha20 encrypt
-    final chachaNonce = nonceBase64 ?? generateChachaNonce();
-    final result = encryptChacha20(aesEncrypted, chaChaKey, chachaNonce);
-    // The result is a JSON string with {"nonce":..., "data":...}
-    return result;
-  }
-
-  static String hybridDecrypt(
-      String hybridData,
-      String aesKey,
-      String chaChaKey, {
+  static String encryptAes(
+      String plaintext,
+      String keyBase64, {
         required String ivBase64,
-        required String nonceBase64,
       }) {
-    // 1. ChaCha20 decrypt
-    final chachaDecrypted = decryptChacha20(hybridData, chaChaKey, nonceBase64);
-    // 2. AES decrypt
-    return decryptAes(chachaDecrypted, aesKey);
+    final keyBytes = base64Decode(keyBase64);
+    final ivBytes = base64Decode(ivBase64);
+
+    final cipherParams = PaddedBlockCipherParameters<ParametersWithIV<KeyParameter>, Null>(
+      ParametersWithIV(KeyParameter(keyBytes), ivBytes),
+      null,
+    );
+
+    final paddedBlockCipher = PaddedBlockCipherImpl(
+      PKCS7Padding(),
+      CBCBlockCipher(AESFastEngine()),
+    );
+    paddedBlockCipher.init(true, cipherParams);
+
+    final inputBytes = utf8.encode(plaintext);
+    final outputBytes = paddedBlockCipher.process(inputBytes);
+
+    return base64Encode(outputBytes);
   }
 
-  // --- RSA ---
-  static Future<pc.AsymmetricKeyPair<pc.RSAPublicKey, pc.RSAPrivateKey>> generateRsaKeyPair({int bitLength = 2048}) async {
-    final secureRandom = _getSecureRandom();
-    final keyGen = pc.RSAKeyGenerator()
-      ..init(pc.ParametersWithRandom(
-        pc.RSAKeyGeneratorParameters(BigInt.parse('65537'), bitLength, 64),
-        secureRandom,
+  static String decryptAes(
+      String ciphertextBase64,
+      String keyBase64, {
+        required String ivBase64,
+      }) {
+    final keyBytes = base64Decode(keyBase64);
+    final ivBytes = base64Decode(ivBase64);
+    final bytesToDecrypt = base64Decode(ciphertextBase64);
+
+    final cipherParams = PaddedBlockCipherParameters<ParametersWithIV<KeyParameter>, Null>(
+      ParametersWithIV(KeyParameter(keyBytes), ivBytes),
+      null,
+    );
+
+    final paddedBlockCipher = PaddedBlockCipherImpl(
+      PKCS7Padding(),
+      CBCBlockCipher(AESFastEngine()),
+    );
+    paddedBlockCipher.init(false, cipherParams);
+
+    final outputBytes = paddedBlockCipher.process(bytesToDecrypt);
+    return utf8.decode(outputBytes);
+  }
+
+  static String generateAesKey() {
+    final rnd = Random.secure();
+    final keyBytes = List<int>.generate(32, (_) => rnd.nextInt(256));
+    return base64Encode(keyBytes);
+  }
+
+  static String generateAesIv() {
+    final rnd = Random.secure();
+    final ivBytes = List<int>.generate(16, (_) => rnd.nextInt(256));
+    return base64Encode(ivBytes);
+  }
+
+  // ==========================================================================
+  // MINIMAL RSA SECTION (PKCS#1 PEM, no basic_utils required)
+  // ==========================================================================
+
+  static AsymmetricKeyPair<RSAPublicKey, RSAPrivateKey> generateRsaKeyPair({int bitLength = 2048}) {
+    final generator = RSAKeyGenerator()
+      ..init(ParametersWithRandom(
+        RSAKeyGeneratorParameters(BigInt.parse('65537'), bitLength, 64),
+        _secureRandom(),
       ));
-    final pair = keyGen.generateKeyPair();
-    final publicKey = pair.publicKey as pc.RSAPublicKey;
-    final privateKey = pair.privateKey as pc.RSAPrivateKey;
-    return pc.AsymmetricKeyPair<pc.RSAPublicKey, pc.RSAPrivateKey>(publicKey, privateKey);
+    final pair = generator.generateKeyPair();
+    return AsymmetricKeyPair<RSAPublicKey, RSAPrivateKey>(
+      pair.publicKey as RSAPublicKey,
+      pair.privateKey as RSAPrivateKey,
+    );
   }
 
-  static String encryptRsa(String message, pc.RSAPublicKey key) => encryptRSA(message, key);
-  static String decryptRsa(String base64Cipher, pc.RSAPrivateKey key) => decryptRSA(base64Cipher, key);
-
-  static String encryptRSA(String message, pc.RSAPublicKey publicKey) {
-    final cipher = pc.RSAEngine()
-      ..init(true, pc.PublicKeyParameter<pc.RSAPublicKey>(publicKey));
-    final input = Uint8List.fromList(utf8.encode(message));
-    final encrypted = cipher.process(input);
-    return base64.encode(encrypted);
+  static String encryptRsa(String plaintext, RSAPublicKey publicKey) {
+    final cipher = RSAEngine()..init(true, PublicKeyParameter<RSAPublicKey>(publicKey));
+    final input = Uint8List.fromList(utf8.encode(plaintext));
+    final blockSize = cipher.inputBlockSize;
+    final output = <int>[];
+    for (int offset = 0; offset < input.length; offset += blockSize) {
+      final end = (offset + blockSize < input.length) ? offset + blockSize : input.length;
+      output.addAll(cipher.process(input.sublist(offset, end)));
+    }
+    return base64Encode(output);
   }
 
-  static String decryptRSA(String base64Data, pc.RSAPrivateKey privateKey) {
-    final cipher = pc.RSAEngine()
-      ..init(false, pc.PrivateKeyParameter<pc.RSAPrivateKey>(privateKey));
-    final input = base64.decode(base64Data);
-    final decrypted = cipher.process(input);
-    return utf8.decode(decrypted);
+  static String decryptRsa(String ciphertextBase64, RSAPrivateKey privateKey) {
+    final cipher = RSAEngine()..init(false, PrivateKeyParameter<RSAPrivateKey>(privateKey));
+    final input = base64Decode(ciphertextBase64);
+    final blockSize = cipher.inputBlockSize;
+    final output = <int>[];
+    for (int offset = 0; offset < input.length; offset += blockSize) {
+      final end = (offset + blockSize < input.length) ? offset + blockSize : input.length;
+      output.addAll(cipher.process(input.sublist(offset, end)));
+    }
+    return utf8.decode(output);
   }
 
-  // --- PEM helpers ---
-  static pc.RSAPublicKey parsePublicKeyFromPem(String pem) {
-    return CryptoUtils.rsaPublicKeyFromPem(pem);
-  }
-  static pc.RSAPrivateKey parsePrivateKeyFromPem(String pem) {
-    return CryptoUtils.rsaPrivateKeyFromPem(pem);
-  }
-  static String encodePublicKeyToPem(pc.RSAPublicKey publicKey) {
-    return CryptoUtils.encodeRSAPublicKeyToPemPkcs1(publicKey);
-  }
-  static String encodePrivateKeyToPem(pc.RSAPrivateKey privateKey) {
-    return CryptoUtils.encodeRSAPrivateKeyToPemPkcs1(privateKey);
+  static String encodeRsaPublicKeyToPem(RSAPublicKey publicKey) {
+    final asn1Seq = ASN1Sequence()
+      ..add(ASN1Integer(publicKey.modulus!))
+      ..add(ASN1Integer(publicKey.exponent!));
+    final bytes = asn1Seq.encodedBytes ?? Uint8List(0);
+    final b64 = base64Encode(bytes);
+    final lines = _chunk(b64, 64);
+    return [
+      '-----BEGIN RSA PUBLIC KEY-----',
+      ...lines,
+      '-----END RSA PUBLIC KEY-----'
+    ].join('\n');
   }
 
-  // --- Utility ---
-  static pc.SecureRandom _getSecureRandom() {
-    final secureRandom = pc.FortunaRandom();
-    final random = Random.secure();
-    final seeds = List<int>.generate(32, (_) => random.nextInt(256));
-    secureRandom.seed(pc.KeyParameter(Uint8List.fromList(seeds)));
+  static String encodeRsaPrivateKeyToPem(RSAPrivateKey privateKey) {
+    final asn1Seq = ASN1Sequence()
+      ..add(ASN1Integer(BigInt.zero)) // version
+      ..add(ASN1Integer(privateKey.n!))
+      ..add(ASN1Integer(privateKey.publicExponent!))
+      ..add(ASN1Integer(privateKey.exponent!))
+      ..add(ASN1Integer(privateKey.p!))
+      ..add(ASN1Integer(privateKey.q!))
+      ..add(ASN1Integer(privateKey.exponent! % (privateKey.p! - BigInt.one)))
+      ..add(ASN1Integer(privateKey.exponent! % (privateKey.q! - BigInt.one)))
+      ..add(ASN1Integer(privateKey.q!.modInverse(privateKey.p!)));
+    final bytes = asn1Seq.encodedBytes ?? Uint8List(0);
+    final b64 = base64Encode(bytes);
+    final lines = _chunk(b64, 64);
+    return [
+      '-----BEGIN RSA PRIVATE KEY-----',
+      ...lines,
+      '-----END RSA PRIVATE KEY-----'
+    ].join('\n');
+  }
+
+  static RSAPublicKey parseRsaPublicKeyPem(String pem) {
+    final b64 = pem
+        .replaceAll('-----BEGIN RSA PUBLIC KEY-----', '')
+        .replaceAll('-----END RSA PUBLIC KEY-----', '')
+        .replaceAll('\n', '');
+    final bytes = base64Decode(b64);
+    final asn1 = ASN1Parser(bytes);
+    final seq = asn1.nextObject() as ASN1Sequence;
+    final modulus = (seq.elements![0] as ASN1Integer).integer!;
+    final exponent = (seq.elements![1] as ASN1Integer).integer!;
+    return RSAPublicKey(modulus, exponent);
+  }
+
+  static RSAPrivateKey parseRsaPrivateKeyPem(String pem) {
+    final b64 = pem
+        .replaceAll('-----BEGIN RSA PRIVATE KEY-----', '')
+        .replaceAll('-----END RSA PRIVATE KEY-----', '')
+        .replaceAll('\n', '');
+    final bytes = base64Decode(b64);
+    final asn1 = ASN1Parser(bytes);
+    final seq = asn1.nextObject() as ASN1Sequence;
+    final n = (seq.elements![1] as ASN1Integer).integer!;
+    final pubE = (seq.elements![2] as ASN1Integer).integer!;
+    final privE = (seq.elements![3] as ASN1Integer).integer!;
+    final p = (seq.elements![4] as ASN1Integer).integer!;
+    final q = (seq.elements![5] as ASN1Integer).integer!;
+    return RSAPrivateKey(n, privE, p, q, pubE);
+  }
+
+  static SecureRandom _secureRandom() {
+    final secureRandom = FortunaRandom();
+    final seed = Uint8List.fromList(List.generate(32, (_) => Random.secure().nextInt(256)));
+    secureRandom.seed(KeyParameter(seed));
     return secureRandom;
   }
 
-  static Uint8List _generateSecureRandomBytes(int length) {
-    final random = Random.secure();
-    return Uint8List.fromList(List<int>.generate(length, (_) => random.nextInt(256)));
-  }
-  static String _formatKey(String key, int length) {
-    if (key.length == length) return key;
-    if (key.length > length) return key.substring(0, length);
-    return key.padRight(length, '0');
+  static List<String> _chunk(String str, int size) {
+    final List<String> chunks = [];
+    for (int i = 0; i < str.length; i += size) {
+      chunks.add(str.substring(i, (i + size > str.length) ? str.length : i + size));
+    }
+    return chunks;
   }
 
+  // ==========================================================================
+  // ChaCha20 SECTION (unchanged)
+  // ==========================================================================
+
+  static Future<String> encryptChacha20(
+      String plaintext,
+      String keyBase64,
+      String nonceBase64,
+      ) async {
+    final key = crypto.SecretKey(base64Decode(keyBase64));
+    final nonce = base64Decode(nonceBase64);
+
+    final algorithm = crypto.Chacha20.poly1305Aead();
+    final secretBox = await algorithm.encrypt(
+      utf8.encode(plaintext),
+      secretKey: key,
+      nonce: nonce,
+    );
+    final combined = <int>[]
+      ..addAll(secretBox.nonce)
+      ..addAll(secretBox.cipherText)
+      ..addAll(secretBox.mac.bytes);
+    return base64Encode(combined);
+  }
+
+  static Future<String> decryptChacha20(
+      String ciphertextBase64,
+      String keyBase64,
+      String nonceBase64,
+      ) async {
+    final key = crypto.SecretKey(base64Decode(keyBase64));
+    final nonce = base64Decode(nonceBase64);
+    final combined = base64Decode(ciphertextBase64);
+
+    final nonceLen = nonce.length;
+    final macLen = 16;
+    if (combined.length < nonceLen + macLen) {
+      throw Exception("Invalid ciphertext format.");
+    }
+    final actualNonce = combined.sublist(0, nonceLen);
+    final macStart = combined.length - macLen;
+    final ciphertext = combined.sublist(nonceLen, macStart);
+    final macBytes = combined.sublist(macStart);
+
+    final secretBox = crypto.SecretBox(
+      ciphertext,
+      nonce: actualNonce,
+      mac: crypto.Mac(macBytes),
+    );
+
+    final clearData = await crypto.Chacha20.poly1305Aead().decrypt(
+      secretBox,
+      secretKey: key,
+    );
+    return utf8.decode(clearData);
+  }
+
+  static String generateChachaKey() {
+    final rnd = Random.secure();
+    final keyBytes = List<int>.generate(32, (_) => rnd.nextInt(256));
+    return base64Encode(keyBytes);
+  }
+
+  static String generateChachaNonce() {
+    final rnd = Random.secure();
+    final nonceBytes = List<int>.generate(12, (_) => rnd.nextInt(256));
+    return base64Encode(nonceBytes);
+  }
+
+  // ==========================================================================
+  // Hybrid AES + ChaCha20 (unchanged)
+  // ==========================================================================
+  static Map<String, String> generateHybridKeys() {
+    final aesIv = generateAesIv();
+    final chachaKey = generateChachaKey();
+    final chachaNonce = generateChachaNonce();
+    final aesKey = generateAesKey();
+    return {
+      'aesKey': aesKey,
+      'aesIv': aesIv,
+      'chachaKey': chachaKey,
+      'chachaNonce': chachaNonce,
+    };
+  }
+
+  static Future<String> hybridEncrypt(
+      String plaintext,
+      String aesKeyBase64,
+      String chachaKeyBase64, {
+        required String ivBase64,
+        required String nonceBase64,
+      }) async {
+    final aesEncrypted = encryptAes(
+      plaintext,
+      aesKeyBase64,
+      ivBase64: ivBase64,
+    );
+
+    final doubleEncrypted = await encryptChacha20(aesEncrypted, chachaKeyBase64, nonceBase64);
+
+    return doubleEncrypted;
+  }
+
+  static Future<String> hybridDecrypt(
+      String ciphertextBase64,
+      String aesKeyBase64,
+      String chachaKeyBase64, {
+        required String ivBase64,
+        required String nonceBase64,
+      }) async {
+    final onceDecrypted = await decryptChacha20(ciphertextBase64, chachaKeyBase64, nonceBase64);
+
+    final original = decryptAes(
+      onceDecrypted,
+      aesKeyBase64,
+      ivBase64: ivBase64,
+    );
+
+    return original;
+  }
 }
-

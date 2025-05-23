@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:convert';
 
 class InnocentEncodingService {
   /// Encodes the ciphertext as spam, splitting it into chunks and hiding them as order/ref codes.
@@ -11,14 +12,12 @@ class InnocentEncodingService {
       "Best regards, The Business Team.",
     ];
 
-    // Split ciphertext into up to 4 chunks
     int chunkSize = (ciphertext.length / 4).ceil();
     List<String> chunks = [];
     for (int i = 0; i < ciphertext.length; i += chunkSize) {
       chunks.add(ciphertext.substring(i, (i + chunkSize > ciphertext.length) ? ciphertext.length : i + chunkSize));
     }
 
-    // Insert each chunk as a code line between spam
     List<String> keywords = ["Order No", "Ref", "Discount code", "And don't forget"];
     StringBuffer buf = StringBuffer();
     for (int i = 0; i < spamLines.length; i++) {
@@ -40,7 +39,6 @@ class InnocentEncodingService {
 
   // --- Fake Spreadsheet ---
   static String encodeAsSpreadsheet(String ciphertext) {
-    // Split into 2-3 chunks for realism
     int chunkSize = (ciphertext.length / 3).ceil();
     List<String> chunks = [];
     for (int i = 0; i < ciphertext.length; i += chunkSize) {
@@ -91,7 +89,6 @@ ${chunks.length > 2 ? 'ExtraData,' + chunks[2] + ',Misc' : ''}
     String version = versions[rand.nextInt(versions.length)];
     String comment = comments[rand.nextInt(comments.length)];
 
-    // Split base64/ciphertext into lines of 64 chars, as in real PGP blocks
     String formatted = _splitBase64(ciphertextOrBase64, 64);
 
     return '''
@@ -110,7 +107,6 @@ $formatted
     final match = regex.firstMatch(pgpText);
     if (match == null) return null;
     String inner = match.group(1) ?? '';
-    // Remove headers, comments, blank lines
     inner = inner
         .replaceAll(RegExp(r'Charset:.*'), '')
         .replaceAll(RegExp(r'Version:.*'), '')
@@ -145,10 +141,8 @@ $formatted
   // --- Space ENCODING (robust base64 for safe encryption/decryption) ---
   /// Encodes the ciphertext as spaces/tabs using base64 for robust storage.
   static String encodeAsSpace(String ciphertext) {
-    // Always encode as base64 first for robustness
-    final base64 = _toBase64(ciphertext);
-    final bytes = base64.codeUnits;
-    // Each byte to 8 bits, 0 -> space, 1 -> tab
+    final base64str = base64.encode(utf8.encode(ciphertext));
+    final bytes = base64str.codeUnits;
     return bytes
         .map((b) => List.generate(8, (i) => ((b >> (7 - i)) & 1) == 0 ? ' ' : '\t').join())
         .join();
@@ -156,10 +150,11 @@ $formatted
 
   /// Decodes the hidden ciphertext from spaces/tabs (base64 safe).
   static String? decodeFromSpace(String disguised) {
-    // Only accept space/tab
-    final chars = disguised.replaceAll(RegExp(r'[^\t ]'), '');
-    if (chars.isEmpty) return null;
-    final bits = chars.split('').map((c) => c == '\t' ? 1 : 0).toList();
+    // Ignore all but space and tab (optionally also allow newlines for user convenience)
+    final chars = disguised.replaceAll(RegExp(r'[^\t \r\n]'), '');
+    final justSpaceTab = chars.replaceAll(RegExp(r'[^\t ]'), '');
+    if (justSpaceTab.isEmpty) return null;
+    final bits = justSpaceTab.split('').map((c) => c == '\t' ? 1 : 0).toList();
     if (bits.length % 8 != 0) return null;
     final bytes = <int>[];
     for (int i = 0; i < bits.length; i += 8) {
@@ -170,22 +165,11 @@ $formatted
       bytes.add(byte);
     }
     try {
-      final base64 = String.fromCharCodes(bytes);
-      return _fromBase64(base64);
+      final base64str = String.fromCharCodes(bytes);
+      final decoded = base64.decode(base64str);
+      return utf8.decode(decoded);
     } catch (_) {
       return null;
     }
-  }
-
-  static String _toBase64(String text) {
-    // Import dart:convert if needed
-    // return base64.encode(utf8.encode(text));
-    return String.fromCharCodes(text.codeUnits); // fallback, replace with actual base64 if needed
-  }
-
-  static String _fromBase64(String base64) {
-    // Import dart:convert if needed
-    // return utf8.decode(base64Decode(base64));
-    return String.fromCharCodes(base64.codeUnits); // fallback, replace with actual base64 if needed
   }
 }

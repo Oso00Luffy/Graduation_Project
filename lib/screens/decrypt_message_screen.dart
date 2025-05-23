@@ -2,15 +2,32 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pointycastle/asymmetric/api.dart';
-import 'package:basic_utils/basic_utils.dart';
 import '../services/encryption_service.dart';
-import '../services/image_encryption_service.dart';
 import '../services/innocent_encoding_service.dart';
 import '../widgets/custom_text_field.dart';
 import 'encrypt_message_screen.dart';
 
 class DecryptMessageScreen extends StatefulWidget {
-  const DecryptMessageScreen({Key? key}) : super(key: key);
+  final String? initialEncryptedMessage;
+  final String? initialAesKey;
+  final String? initialAesIv;
+  final String? initialChachaKey;
+  final String? initialChachaNonce;
+  final String? initialEncryptionType;
+  final String? initialDisguiseType;
+  final String? initialRsaPrivateKey; // <-- Add this for autofill
+
+  const DecryptMessageScreen({
+    Key? key,
+    this.initialEncryptedMessage,
+    this.initialAesKey,
+    this.initialAesIv,
+    this.initialChachaKey,
+    this.initialChachaNonce,
+    this.initialEncryptionType,
+    this.initialDisguiseType,
+    this.initialRsaPrivateKey, // <-- Add this for autofill
+  }) : super(key: key);
 
   @override
   State<DecryptMessageScreen> createState() => _DecryptMessageScreenState();
@@ -24,10 +41,6 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
   final TextEditingController _chachaNonceController = TextEditingController();
   final TextEditingController _rsaPrivateKeyController = TextEditingController();
 
-  // AES+RSA hybrid fields
-  final TextEditingController _aesRsaEncryptedAesKeyController = TextEditingController();
-  final TextEditingController _aesRsaEncryptedMessageController = TextEditingController();
-
   String? _decryptedMessage;
   bool _isLoading = false;
   bool _copied = false;
@@ -39,7 +52,6 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     'RSA',
     'ChaCha20',
     'Hybrid',
-    'AES+RSA'
   ];
   late String _selectedEncryptionType;
 
@@ -51,13 +63,45 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     'Fake Russian',
     'Space'
   ];
-  String _selectedDisguiseType = 'None';
+  late String _selectedDisguiseType;
   String? _disguisePassword = '';
 
   @override
   void initState() {
     super.initState();
-    _selectedEncryptionType = _encryptionTypes[0];
+    // Set encryption type if provided
+    if (widget.initialEncryptionType != null &&
+        _encryptionTypes.contains(widget.initialEncryptionType)) {
+      _selectedEncryptionType = widget.initialEncryptionType!;
+    } else {
+      _selectedEncryptionType = _encryptionTypes[0];
+    }
+    // Set disguise type if provided
+    if (widget.initialDisguiseType != null &&
+        _disguiseTypes.contains(widget.initialDisguiseType)) {
+      _selectedDisguiseType = widget.initialDisguiseType!;
+    } else {
+      _selectedDisguiseType = _disguiseTypes[0];
+    }
+    if (widget.initialEncryptedMessage != null && widget.initialEncryptedMessage!.isNotEmpty) {
+      _messageController.text = widget.initialEncryptedMessage!;
+    }
+    if (widget.initialAesKey != null && widget.initialAesKey!.isNotEmpty) {
+      _aesKeyController.text = widget.initialAesKey!;
+    }
+    if (widget.initialAesIv != null && widget.initialAesIv!.isNotEmpty) {
+      _aesIvController.text = widget.initialAesIv!;
+    }
+    if (widget.initialChachaKey != null && widget.initialChachaKey!.isNotEmpty) {
+      _chachaKeyController.text = widget.initialChachaKey!;
+    }
+    if (widget.initialChachaNonce != null && widget.initialChachaNonce!.isNotEmpty) {
+      _chachaNonceController.text = widget.initialChachaNonce!;
+    }
+    // Autofill the RSA Private Key PEM if provided
+    if (widget.initialRsaPrivateKey != null && widget.initialRsaPrivateKey!.isNotEmpty) {
+      _rsaPrivateKeyController.text = widget.initialRsaPrivateKey!;
+    }
   }
 
   @override
@@ -68,8 +112,6 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     _chachaKeyController.dispose();
     _chachaNonceController.dispose();
     _rsaPrivateKeyController.dispose();
-    _aesRsaEncryptedAesKeyController.dispose();
-    _aesRsaEncryptedMessageController.dispose();
     super.dispose();
   }
 
@@ -79,8 +121,17 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     _chachaKeyController.clear();
     _chachaNonceController.clear();
     _rsaPrivateKeyController.clear();
-    _aesRsaEncryptedAesKeyController.clear();
-    _aesRsaEncryptedMessageController.clear();
+  }
+
+  bool isBase64(String s) {
+    try {
+      String cleaned = s.replaceAll('\n', '').replaceAll('\r', '').trim();
+      if (cleaned.length % 4 != 0) return false;
+      base64Decode(cleaned);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _decryptMessage() async {
@@ -116,19 +167,21 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     final chachaKey = _chachaKeyController.text.trim();
     final chachaNonce = _chachaNonceController.text.trim();
     final rsaPrivateKeyPem = _rsaPrivateKeyController.text.trim();
-    final aesRsaEncryptedAesKeyText = _aesRsaEncryptedAesKeyController.text.trim();
-    final aesRsaEncryptedMessageText = _aesRsaEncryptedMessageController.text.trim();
     String result;
     final encrypted = extracted;
 
     try {
-      if (encrypted.isEmpty && _selectedEncryptionType != 'AES+RSA') {
+      if (encrypted.isEmpty) {
         result = 'Please enter the encrypted message.';
       } else if (_selectedEncryptionType == 'AES') {
         if (aesKey.isEmpty) {
           result = 'Please enter AES key.';
         } else {
-          result = EncryptionService.decryptAes(encrypted, aesKey);
+          if (aesIv.isEmpty) {
+            result = 'Please enter AES IV.';
+          } else {
+            result = EncryptionService.decryptAes(encrypted, aesKey, ivBase64: aesIv);
+          }
         }
       } else if (_selectedEncryptionType == 'RSA') {
         if (rsaPrivateKeyPem.isEmpty) {
@@ -136,12 +189,13 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
         } else {
           RSAPrivateKey? privateKey;
           try {
-            privateKey = CryptoUtils.rsaPrivateKeyFromPem(rsaPrivateKeyPem);
-          } catch (_) {
+            print("Parsing RSA private key:\n${rsaPrivateKeyPem}"); // <-- ADD HERE
+            privateKey = EncryptionService.parseRsaPrivateKeyPem(rsaPrivateKeyPem);
+          } catch (e) {
             privateKey = null;
           }
           if (privateKey == null) {
-            result = 'Invalid private key format.';
+            result = 'Invalid private key format. Please check for missing/extra lines, spaces, or PEM block errors.';
           } else {
             result = EncryptionService.decryptRsa(encrypted, privateKey);
           }
@@ -149,46 +203,24 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
       } else if (_selectedEncryptionType == 'ChaCha20') {
         if (chachaKey.isEmpty || chachaNonce.isEmpty) {
           result = 'Please enter ChaCha20 key and nonce.';
+        } else if (!isBase64(encrypted)) {
+          result = "Extracted ciphertext is not valid base64. Wrong disguise type or corrupted message.";
         } else {
-          result = EncryptionService.decryptChacha20(encrypted, chachaKey, chachaNonce);
+          result = await EncryptionService.decryptChacha20(encrypted, chachaKey, chachaNonce);
         }
       } else if (_selectedEncryptionType == 'Hybrid') {
         if (aesKey.isEmpty || aesIv.isEmpty || chachaKey.isEmpty || chachaNonce.isEmpty) {
           result = 'Please enter AES key, IV, ChaCha20 key and nonce for hybrid decryption.';
+        } else if (!isBase64(encrypted)) {
+          result = "Extracted ciphertext is not valid base64. Wrong disguise type or corrupted message.";
         } else {
-          result = EncryptionService.hybridDecrypt(
+          result = await EncryptionService.hybridDecrypt(
             encrypted,
             aesKey,
             chachaKey,
             ivBase64: aesIv,
             nonceBase64: chachaNonce,
           );
-        }
-      } else if (_selectedEncryptionType == 'AES+RSA') {
-        // AES+RSA Hybrid decryption
-        if (aesRsaEncryptedAesKeyText.isEmpty ||
-            aesRsaEncryptedMessageText.isEmpty ||
-            rsaPrivateKeyPem.isEmpty) {
-          result = 'Please provide encrypted AES key, encrypted message, and RSA private key for AES+RSA decryption.';
-        } else {
-          try {
-            final encryptedAesKey = base64Decode(aesRsaEncryptedAesKeyText);
-            final encryptedMessage = base64Decode(aesRsaEncryptedMessageText);
-            RSAPrivateKey? privateKey;
-            try {
-              privateKey = CryptoUtils.rsaPrivateKeyFromPem(rsaPrivateKeyPem);
-            } catch (_) {
-              privateKey = null;
-            }
-            if (privateKey == null) {
-              result = 'Invalid private key format for AES+RSA.';
-            } else {
-              // You must implement this function in EncryptionService!
-              result = ImageEncryptionService.decryptAesRsa(encryptedMessage, encryptedAesKey, privateKey);
-            }
-          } catch (e) {
-            result = 'AES+RSA decryption error: $e';
-          }
         }
       } else {
         result = 'Unknown encryption type.';
@@ -200,9 +232,8 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     setState(() {
       _decryptedMessage = result;
       _isLoading = false;
-      _showSuccess = !(result.startsWith('Decryption error:') || result.startsWith('Please'));
-      _errorMessage =
-      (result.startsWith('Decryption error:') || result.startsWith('Please')) ? result : null;
+      _showSuccess = !(result.startsWith('Decryption error:') || result.startsWith('Please') || result.startsWith('Invalid') || result.startsWith('Extracted'));
+      _errorMessage = (result.startsWith('Decryption error:') || result.startsWith('Please') || result.startsWith('Invalid') || result.startsWith('Extracted')) ? result : null;
     });
   }
 
@@ -239,9 +270,7 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     if (_decryptedMessage != null) return 2;
     if (_aesKeyController.text.isNotEmpty ||
         _chachaKeyController.text.isNotEmpty ||
-        _rsaPrivateKeyController.text.isNotEmpty ||
-        _aesRsaEncryptedAesKeyController.text.isNotEmpty ||
-        _aesRsaEncryptedMessageController.text.isNotEmpty) return 1;
+        _rsaPrivateKeyController.text.isNotEmpty) return 1;
     return 0;
   }
 
@@ -255,7 +284,6 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
     final isRSA = _selectedEncryptionType == 'RSA';
     final isChaCha20 = _selectedEncryptionType == 'ChaCha20';
     final isHybrid = _selectedEncryptionType == 'Hybrid';
-    final isAESRSA = _selectedEncryptionType == 'AES+RSA';
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -435,33 +463,6 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
                               maxLines: 8,
                             ),
                           ],
-                          if (isAESRSA) ...[
-                            const SizedBox(height: 16),
-                            CustomTextField(
-                              controller: _aesRsaEncryptedAesKeyController,
-                              hintText: 'Encrypted AES Key (Base64)',
-                              isPassword: false,
-                              minLines: 2,
-                              maxLines: 4,
-                              // Add copy/paste as you wish, e.g. via suffixIcon if supported by your CustomTextField
-                            ),
-                            const SizedBox(height: 12),
-                            CustomTextField(
-                              controller: _aesRsaEncryptedMessageController,
-                              hintText: 'Encrypted Message (Base64)',
-                              isPassword: false,
-                              minLines: 2,
-                              maxLines: 6,
-                            ),
-                            const SizedBox(height: 12),
-                            CustomTextField(
-                              controller: _rsaPrivateKeyController,
-                              hintText: 'Paste your RSA Private Key here (PEM format)',
-                              isPassword: false,
-                              minLines: 3,
-                              maxLines: 8,
-                            ),
-                          ],
                           const SizedBox(height: 24),
                           if (_errorMessage != null)
                             Padding(
@@ -543,8 +544,7 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
                             const SizedBox(height: 20),
                             Card(
                               elevation: 6,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
                               color: isDark ? Colors.grey[900] : Colors.white,
                               shadowColor: const Color(0x336a82fb),
@@ -592,8 +592,7 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
                                           foregroundColor: isDark ? Colors.white : Colors.black87,
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 18, vertical: 8),
+                                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(8),
                                           ),
@@ -616,7 +615,7 @@ class _DecryptMessageScreenState extends State<DecryptMessageScreen> {
                                 foregroundColor: isDark ? Colors.white : Colors.black87,
                               ),
                               onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) => const EncryptMessageScreen(),
+                                builder: (_) => EncryptMessageScreen(),
                               )),
                             ),
                           ),
@@ -690,9 +689,7 @@ class StepperWidget extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13.5,
-                  color: isActive
-                      ? (isDark ? Colors.white : Colors.black87)
-                      : Colors.grey[600],
+                  color: isActive ? (isDark ? Colors.white : Colors.black87) : Colors.grey[600],
                   fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
                   letterSpacing: 0.3,
                 ),

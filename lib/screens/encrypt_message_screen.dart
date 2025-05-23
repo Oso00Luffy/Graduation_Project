@@ -153,13 +153,13 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
         if (chachaKey.isEmpty || chachaNonce.isEmpty) {
           result = 'Please generate or enter ChaCha20 key and nonce.';
         } else {
-          result = EncryptionService.encryptChacha20(message, chachaKey, chachaNonce);
+          result = await EncryptionService.encryptChacha20(message, chachaKey, chachaNonce);
         }
       } else if (_selectedEncryptionType == 'Hybrid') {
         if (aesKey.isEmpty || aesIv.isEmpty || chachaKey.isEmpty || chachaNonce.isEmpty) {
           result = 'Please generate or enter AES key, IV, ChaCha20 key and nonce for hybrid encryption.';
         } else {
-          result = EncryptionService.hybridEncrypt(
+          result = await EncryptionService.hybridEncrypt(
             message,
             aesKey,
             chachaKey,
@@ -178,8 +178,9 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
       _encryptedMessage = result;
       _isLoading = false;
       _showSuccess = !(result.startsWith('Encryption error:') || result.startsWith('Please'));
-      _errorMessage =
-      (result.startsWith('Encryption error:') || result.startsWith('Please')) ? result : null;
+      _errorMessage = (result.startsWith('Encryption error:') || result.startsWith('Please'))
+          ? result
+          : null;
     });
 
     if (_showSuccess && _encryptedMessage != null) {
@@ -529,7 +530,6 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                             ),
                           ],
                           const SizedBox(height: 24),
-
                           if (_errorMessage != null)
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -564,7 +564,6 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                                 ],
                               ),
                             ),
-
                           Container(
                             width: double.infinity,
                             height: 52,
@@ -611,8 +610,7 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                             const SizedBox(height: 20),
                             Card(
                               elevation: 6,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
                               color: isDark ? Colors.grey[900] : Colors.white,
                               shadowColor: const Color(0x336a82fb),
@@ -656,12 +654,12 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                                       alignment: Alignment.centerRight,
                                       child: ElevatedButton.icon(
                                         icon: Icon(Icons.copy, size: 18, color: isDark ? Colors.white : Colors.black87),
-                                        label: Text(_copied ? 'Copied!' : 'Copy', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                                        label: Text(_copied ? 'Copied!' : 'Copy',
+                                            style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
                                           foregroundColor: isDark ? Colors.white : Colors.black87,
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 18, vertical: 8),
+                                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(8),
                                           ),
@@ -675,17 +673,35 @@ class _EncryptMessageScreenState extends State<EncryptMessageScreen> {
                             ),
                           ],
                           const SizedBox(height: 8),
+
+                          // Pass encrypted data (and keys) to the Decryption Screen:
                           Align(
                             alignment: Alignment.bottomRight,
                             child: TextButton.icon(
                               icon: Icon(Icons.lock_open, size: 18, color: isDark ? Colors.white : Colors.black87),
-                              label: Text("Go to Decrypt", style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                              label: Text(
+                                "Go to Decrypt",
+                                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                              ),
                               style: TextButton.styleFrom(
                                 foregroundColor: isDark ? Colors.white : Colors.black87,
                               ),
-                              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) => const DecryptMessageScreen(),
-                              )),
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => DecryptMessageScreen(
+                                      initialEncryptedMessage: _encryptedMessage,
+                                      initialAesKey: _aesKeyController.text.trim(),
+                                      initialAesIv: _aesIvController.text.trim(),
+                                      initialChachaKey: _chachaKeyController.text.trim(),
+                                      initialChachaNonce: _chachaNonceController.text.trim(),
+                                      initialEncryptionType: _selectedEncryptionType,
+                                      initialDisguiseType: _selectedDisguiseType,
+                                      initialRsaPrivateKey: _rsaPrivateKeyController.text.trim(), // <-- autofill private key
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ],
@@ -758,9 +774,7 @@ class StepperWidget extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13.5,
-                  color: isActive
-                      ? (isDark ? Colors.white : Colors.black87)
-                      : Colors.grey[600],
+                  color: isActive ? (isDark ? Colors.white : Colors.black87) : Colors.grey[600],
                   fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
                   letterSpacing: 0.3,
                 ),
