@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -9,7 +10,25 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../utils/file_extension_utils.dart';
 import '../utils/web_download_helper.dart' if (dart.library.html) '../utils/web_download_helper_web.dart';
 
+enum ImageEncryptionMethod { visualCrypto, aesRsa }
+
 class DecryptImageScreen extends StatefulWidget {
+  // Accept initial data for navigation!
+  final Uint8List? initialEncryptedImage;
+  final Uint8List? initialKeyImage;
+  final Uint8List? initialEncryptedAesKey;
+  final String? initialPrivateKeyPem;
+  final ImageEncryptionMethod? method;
+
+  const DecryptImageScreen({
+    Key? key,
+    this.initialEncryptedImage,
+    this.initialKeyImage,
+    this.initialEncryptedAesKey,
+    this.initialPrivateKeyPem,
+    this.method,
+  }) : super(key: key);
+
   @override
   _DecryptImageScreenState createState() => _DecryptImageScreenState();
 }
@@ -18,6 +37,13 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
   Uint8List? _encryptedImageBytes;
   Uint8List? _keyImageBytes;
   Uint8List? _decryptedImageBytes;
+
+  // For AES+RSA
+  Uint8List? _encryptedAesKeyBytes;
+  String? _privateKeyPem;
+
+  ImageEncryptionMethod _method = ImageEncryptionMethod.visualCrypto;
+
   final ImagePicker _picker = ImagePicker();
   String? _errorMessage;
   bool _isDecrypting = false;
@@ -25,23 +51,31 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
 
   static const int MAX_IMAGE_SIZE = 20 * 1024 * 1024;
 
+  @override
+  void initState() {
+    super.initState();
+    // Autofill if navigated with data
+    if (widget.method != null) _method = widget.method!;
+    if (widget.initialEncryptedImage != null) _encryptedImageBytes = widget.initialEncryptedImage;
+    if (widget.initialKeyImage != null) _keyImageBytes = widget.initialKeyImage;
+    if (widget.initialEncryptedAesKey != null) _encryptedAesKeyBytes = widget.initialEncryptedAesKey;
+    if (widget.initialPrivateKeyPem != null) _privateKeyPem = widget.initialPrivateKeyPem;
+  }
+
   Future<void> _pickImage(String purpose, Function(Uint8List) onImageSelected) async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       try {
         final bytes = await pickedFile.readAsBytes();
-
         if (bytes.length > MAX_IMAGE_SIZE) {
           setState(() {
             _errorMessage = '$purpose image is too large. Please pick an image under 20 MB.';
           });
           return;
         }
-
         setState(() {
           _errorMessage = null;
         });
-
         onImageSelected(bytes);
       } catch (e) {
         setState(() {
@@ -52,13 +86,6 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
   }
 
   Future<void> _decryptImage() async {
-    if (_encryptedImageBytes == null || _keyImageBytes == null) {
-      setState(() {
-        _errorMessage = 'Please select both encrypted and key images.';
-      });
-      return;
-    }
-
     setState(() {
       _isDecrypting = true;
       _errorMessage = null;
@@ -67,17 +94,46 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
     });
 
     try {
-      final decryptedBytes = await compute(
-        _performDecryption,
-        EncryptionParams(_encryptedImageBytes!, _keyImageBytes!),
-      );
-
-      setState(() {
-        _decryptedImageBytes = decryptedBytes;
-        _isDecrypting = false;
-        _showSuccess = true;
-      });
-
+      if (_method == ImageEncryptionMethod.visualCrypto) {
+        if (_encryptedImageBytes == null || _keyImageBytes == null) {
+          setState(() {
+            _errorMessage = 'Please select both encrypted and key images.';
+            _isDecrypting = false;
+          });
+          return;
+        }
+        final decryptedBytes = await compute(
+          _performDecryption,
+          EncryptionParams(_encryptedImageBytes!, _keyImageBytes!),
+        );
+        setState(() {
+          _decryptedImageBytes = decryptedBytes;
+          _isDecrypting = false;
+          _showSuccess = true;
+        });
+      } else if (_method == ImageEncryptionMethod.aesRsa) {
+        if (_encryptedImageBytes == null ||
+            _encryptedAesKeyBytes == null ||
+            _privateKeyPem == null ||
+            _privateKeyPem!.isEmpty) {
+          setState(() {
+            _errorMessage =
+            'Provide encrypted image, encrypted AES key, and RSA private key PEM.';
+            _isDecrypting = false;
+          });
+          return;
+        }
+        final decryptedBytes = await ImageEncryptionService.decryptImageWithAESRSA(
+          _encryptedImageBytes!,
+          _encryptedAesKeyBytes!,
+          _privateKeyPem!,
+        );
+        setState(() {
+          _decryptedImageBytes = decryptedBytes;
+          _isDecrypting = false;
+          _showSuccess = true;
+        });
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Image decrypted successfully!'),
@@ -106,8 +162,6 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
         String? originalPathOrName,
       }) async {
     if (bytes == null) return;
-
-    // 1. Detect extension from originalPathOrName or guess from bytes
     String ext = '';
     if (originalPathOrName != null && originalPathOrName.isNotEmpty) {
       ext = getFileExtension(originalPathOrName);
@@ -119,7 +173,6 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
       ext = '.jpg'; // fallback
     }
     String filename = "$filenameBase$ext";
-
     if (kIsWeb) {
       await saveImageWeb(bytes, filename);
     } else {
@@ -138,11 +191,8 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -174,15 +224,48 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 20),
                       child: Column(
                         children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text("Method:", style: TextStyle(fontWeight: FontWeight.bold)),
+                              SizedBox(width: 12),
+                              DropdownButton<ImageEncryptionMethod>(
+                                value: _method,
+                                items: [
+                                  DropdownMenuItem(
+                                    value: ImageEncryptionMethod.visualCrypto,
+                                    child: Text("Visual Cryptography"),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: ImageEncryptionMethod.aesRsa,
+                                    child: Text("AES + RSA"),
+                                  ),
+                                ],
+                                onChanged: (val) {
+                                  setState(() {
+                                    _method = val!;
+                                    _decryptedImageBytes = null;
+                                    _errorMessage = null;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
                           StepperWidget(
                             currentStep: _decryptedImageBytes != null
                                 ? 2
-                                : _keyImageBytes != null
-                                ? 1
-                                : 0,
-                            steps: [
+                                : (_method == ImageEncryptionMethod.visualCrypto
+                                ? (_keyImageBytes != null ? 1 : 0)
+                                : (_encryptedAesKeyBytes != null && _privateKeyPem != null ? 1 : 0)),
+                            steps: _method == ImageEncryptionMethod.visualCrypto
+                                ? [
                               'Select Encrypted Image',
                               'Select Key Image',
+                              'Decrypt Image',
+                            ]
+                                : [
+                              'Select Encrypted Image',
+                              'Input Encrypted AES Key & Private Key',
                               'Decrypt Image',
                             ],
                           ),
@@ -196,16 +279,55 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                             icon: Icons.lock,
                             pickLabel: 'Select Encrypted Image',
                           ),
-                          SizedBox(height: 16),
-                          _buildImageCard(
-                            title: 'Key Image',
-                            imageBytes: _keyImageBytes,
-                            onPick: () => _pickImage('Key', (bytes) {
-                              setState(() => _keyImageBytes = bytes);
-                            }),
-                            icon: Icons.vpn_key_outlined,
-                            pickLabel: 'Select Key Image',
-                          ),
+                          if (_method == ImageEncryptionMethod.visualCrypto) ...[
+                            SizedBox(height: 16),
+                            _buildImageCard(
+                              title: 'Key Image',
+                              imageBytes: _keyImageBytes,
+                              onPick: () => _pickImage('Key', (bytes) {
+                                setState(() => _keyImageBytes = bytes);
+                              }),
+                              icon: Icons.vpn_key_outlined,
+                              pickLabel: 'Select Key Image',
+                            ),
+                          ],
+                          if (_method == ImageEncryptionMethod.aesRsa) ...[
+                            SizedBox(height: 16),
+                            // Encrypted AES Key input field
+                            TextFormField(
+                              initialValue: _encryptedAesKeyBytes != null
+                                  ? base64Encode(_encryptedAesKeyBytes!)
+                                  : '',
+                              minLines: 2,
+                              maxLines: 6,
+                              decoration: InputDecoration(
+                                labelText: "Encrypted AES Key (Base64)",
+                                border: OutlineInputBorder(),
+                              ),
+                              onChanged: (val) {
+                                setState(() {
+                                  try {
+                                    _encryptedAesKeyBytes = base64Decode(val.trim());
+                                  } catch (_) {
+                                    _encryptedAesKeyBytes = null;
+                                  }
+                                });
+                              },
+                            ),
+                            SizedBox(height: 10),
+                            // Private Key PEM input field
+                            TextFormField(
+                              initialValue: _privateKeyPem ?? '',
+                              minLines: 2,
+                              maxLines: 8,
+                              decoration: InputDecoration(
+                                labelText: "RSA Private Key (PEM)",
+                                border: OutlineInputBorder(),
+                              ),
+                              onChanged: (val) =>
+                                  setState(() => _privateKeyPem = val.trim()),
+                            ),
+                          ],
                           SizedBox(height: 24),
                           Container(
                             width: double.infinity,
@@ -474,7 +596,6 @@ class EncryptionParams {
   EncryptionParams(this.plainImageBytes, this.keyImageBytes);
 }
 
-/// A beautiful stepper indicator for process steps
 class StepperWidget extends StatelessWidget {
   final int currentStep;
   final List<String> steps;

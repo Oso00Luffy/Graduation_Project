@@ -38,6 +38,7 @@ dependencies:
   image_gallery_saver_plus: ^4.0.1
   url_launcher: ^6.3.1
   permission_handler: ^12.0.0+1
+  flutter_launcher_icons: ^0.14.3
 
 
 dev_dependencies:
@@ -51,3 +52,8 @@ flutter:
     - assets/images/google-logo.png
     - assets/fonts/
     - assets/lottie/
+
+flutter_icons:
+  android: true
+  ios: false # Change to true if you want to set iOS icon too
+  image_path: "assets/Icon.png" # Path to your icon image
