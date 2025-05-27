@@ -1,76 +1,101 @@
-
 # 🔐 SCC_App — Secure Communication & Cryptography App
 
-A cross-platform Flutter application focused on secure communication through modern cryptographic techniques and steganography. Designed as a graduation project in Cybersecurity at Tafila Technical University.
+A cross-platform Flutter application for secure communication and modern cryptography. Designed as a graduation project in Cybersecurity at Tafila Technical University.
 
-> 🧪 Graduation Project by:
-> - Osama Wesam Jaradat [@Oso00Luffy](https://github.com/Oso00Luffy)
-> - Moath Amjad Hdairis  
-> Supervised by: Dr. Eman
+> 🧪 Graduation Project by  
+> **Osama Wesam Jaradat** [@Oso00Luffy](https://github.com/Oso00Luffy)  
+> **Moath Amjad Hdairis**  
+> **Supervisor:** Dr. Eman
 
 ---
 
-## Table of Contents
-- [Project Objectives](#-project-objectives)
-- [Tech Stack](#-tech-stack)
-- [Features](#-features)
-- [Project Structure](#-project-structure)
-- [Getting Started](#-getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-- [Screenshots](#-screenshots)
-- [To-Do](#-to-do)
-- [Educational Value](#-educational-value)
-- [License](#-license)
-- [Links](#-links)
+## 📚 Table of Contents
+
+- [Project Objectives](#project-objectives)
+- [Tech Stack](#tech-stack)
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Educational Value](#educational-value)
+- [To-Do](#to-do)
+- [License](#license)
+- [Links](#links)
 - [Star History](#star-history)
 
 ---
 
 ## 🎯 Project Objectives
 
-- Enable **secure encryption/decryption** of messages and images
-- Support **steganography techniques** for hiding messages in plain sight
-- Create a **peer-to-peer secure chat** system
-- Allow users to set **expiry dates for encrypted content**
-- Showcase a **modular, privacy-focused** mobile app for cybersecurity use cases
+- Enable secure encryption/decryption of messages and images
+- Support steganography for hiding messages in images or text
+- Peer-to-peer secure chat system (local network/Bluetooth)
+- Expiry for encrypted content and messages
+- Modular, privacy-focused architecture for cybersecurity education
 
 ---
 
 ## 🛠 Tech Stack
 
 | Layer        | Technology                          |
-|--------------|--------------------------------------|
-| Language     | Dart                                 |
-| Framework    | Flutter                              |
-| Encryption   | AES, RSA (custom implementations)    |
-| Steganography| Zero-width encoding, homoglyphs, whitespaces |
-| Chat         | Local LAN or Bluetooth (P2P)         |
-| Platform     | Android (Flutter)                    |
+|--------------|-------------------------------------|
+| Language     | Dart                                |
+| Framework    | Flutter                             |
+| Cryptography | AES, RSA (via [PointyCastle](https://pub.dev/packages/pointycastle)) |
+| Steganography| Zero-width encoding, homoglyphs, whitespace |
+| Communication| Local LAN/Bluetooth P2P             |
+| Platform     | Android (Flutter)                   |
+
+Other notable tech:  
+- **Firebase** (App Check, Auth for login)
+- **Provider** for state management
+- **C++/CMake/Swift** for low-level extensions (minor)
+- **Shared Preferences** for local, secure storage
 
 ---
 
 ## 📦 Features
 
 ### 🔐 Encryption & Decryption
-- Encrypt text with AES or RSA
-- Decrypt content using private keys
-- Offline & secure processing
+- **Text:** AES and RSA encryption/decryption
+- **Images:** Hide and extract messages securely
+- **Offline:** All cryptographic processing is local
 
 ### 🖼️ Image Steganography
-- Hide encrypted text inside images
-- Extract and decode hidden messages
-- Techniques: Homoglyph substitution, zero-width, spacing
+- Hide encrypted text in PNG/JPG images
+- Extract hidden messages from steganographic images
+- Multiple techniques: homoglyph, zero-width, whitespace
 
 ### 💬 Secure Chat
-- Peer-to-peer local communication
+- Peer-to-peer local communication (LAN/Bluetooth)
 - End-to-end encrypted messages
 - Expiry timer for sensitive chats
 
-### ⏳ Message Expiry & Session
-- Time-bound messages (self-destruct after expiry)
-- Secure session data stored locally
-- Session handling for user privacy
+### ⏳ Message Expiry & Session Management
+- Self-destructing (time-bound) messages
+- Secure session management & auto-logout
+
+### 🎨 Theming & UX
+- Multiple custom themes: AMOLED, Blue, Sepia, Gold & Purple, Pink & Blue-Gray, System, Light/Dark
+- Theme persistence across sessions
+- Modern, responsive UI
+
+### ⚙️ Settings & Utilities
+- Theme selector
+- About and privacy information
+- Session and security options
+
+---
+
+## 📸 Screenshots
+
+<!-- Add your actual screenshots in assets/screenshots/ and update links -->
+<p float="left">
+  <img src="assets/screenshots/home.png" width="240" />
+  <img src="assets/screenshots/encrypt.png" width="240" />
+  <img src="assets/screenshots/chat.png" width="240" />
+  <img src="assets/screenshots/settings.png" width="240" />
+</p>
 
 ---
 
@@ -79,7 +104,6 @@ A cross-platform Flutter application focused on secure communication through mod
 ```
 lib/
 ├── main.dart
-├── routes.dart
 ├── constant/
 │   └── colour_screen.dart
 ├── models/
@@ -98,7 +122,7 @@ lib/
 │   ├── login_screen.dart
 │   ├── profile_screen.dart
 │   ├── settings_screen.dart
-│   └── ... [see all: https://github.com/Oso00Luffy/Graduation_Project/tree/main/lib/screens]
+│   └── ...
 ├── services/
 │   ├── chat_room_service.dart
 │   ├── chat_service.dart
@@ -110,22 +134,23 @@ lib/
 │   ├── message_encryption_service.dart
 │   ├── recent_keys_service.dart
 │   ├── user_service.dart
-│   └── ... [see all: https://github.com/Oso00Luffy/Graduation_Project/tree/main/lib/services]
+│   └── ...
 ├── theme/
 │   └── theme_provider.dart
 ├── utils/
 │   └── crypto_service.dart
 ├── widgets/
+│   ├── gradient_background.dart
 │   ├── custom_button.dart
 │   ├── custom_text_field.dart
 │   ├── message_list.dart
 │   ├── outlined_text.dart
 │   ├── profile_keys_section.dart
 │   ├── show_more_text.dart
-│   └── ... [see all: https://github.com/Oso00Luffy/Graduation_Project/tree/main/lib/widgets]
+│   └── ...
 ```
 
-> For the full and most up-to-date structure, browse the [lib/ directory on GitHub](https://github.com/Oso00Luffy/Graduation_Project/tree/main/lib).
+For a full, up-to-date structure, browse the [lib/ directory](https://github.com/Oso00Luffy/Graduation_Project/tree/main/lib).
 
 ---
 
@@ -147,53 +172,46 @@ flutter pub get
 flutter run
 ```
 
+### Firebase Setup
+
+- Place your `firebase_options.dart` in `lib/screens/` (see [FlutterFire docs](https://firebase.flutter.dev/docs/overview/))
+- Enable App Check, Authentication, etc. in Firebase console
+
 ---
 
-## 📸 Screenshots
+## 🧠 Educational Value
 
-> _(Add screenshots from your app in `/assets/screenshots/` and display them below)_
-
-```
-![Home Screen](assets/screenshots/home.png)
-![Encryption](assets/screenshots/encryption.png)
-![Chat](assets/screenshots/chat.png)
-```
+- Hands-on use of cryptographic algorithms
+- Steganography techniques in mobile apps
+- Peer-to-peer communication without internet
+- Secure session management and lifecycle awareness
 
 ---
 
 ## ✅ To-Do
 
 - [ ] UI polish and animations
-- [ ] Add QR-code export for encrypted messages
-- [ ] Add backup option using Firebase (optional)
-- [ ] Add biometric authentication for login
-- [ ] Support for more steganographic techniques
-
----
-
-## 🧠 Educational Value
-
-This project showcases:
-- Hands-on application of cryptographic algorithms
-- Practical implementation of steganography in mobile apps
-- Peer-to-peer communication without internet dependency
-- Session security and lifecycle awareness in mobile development
+- [ ] QR-code export for encrypted messages
+- [ ] Optional backup via Firebase
+- [ ] Biometric authentication for login
+- [ ] Additional steganographic techniques
 
 ---
 
 ## 📝 License
 
-This project is part of an academic graduation project and is not licensed for commercial use.
+This project is for academic/graduation purposes and is not licensed for commercial use.
 
 ---
 
 ## 🌐 Links
 
-- 🎓 University: Tafila Technical University
-- 📜 Supervisor: Dr. Eman
-- 📁 Repository: [https://github.com/Oso00Luffy/Graduation_Project](https://github.com/Oso00Luffy/Graduation_Project)
+- 🎓 [Tafila Technical University](https://www.ttu.edu.jo/)
+- 📁 [GitHub Repository](https://github.com/Oso00Luffy/Graduation_Project)
+- 👤 [@Oso00Luffy](https://github.com/Oso00Luffy)
 
 ---
-## Star History
+
+## 📈 Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Oso00Luffy/Graduation_Project&type=Date)](https://star-history.com/#Oso00Luffy/Graduation_Project&Date)
