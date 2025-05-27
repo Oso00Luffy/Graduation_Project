@@ -212,7 +212,7 @@ class HomeContent extends StatelessWidget {
 
   Widget _buildUserProfileSection(
       BuildContext context, User? user, ThemeData theme, bool isWide) {
-    final String displayName = user?.displayName ?? 'No Name';
+    final String displayName = user?.displayName ?? 'Guest';
     final String email = user?.email ?? 'No Email';
     final String? photoURL = user?.photoURL;
 

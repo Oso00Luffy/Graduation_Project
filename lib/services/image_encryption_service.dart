@@ -149,54 +149,50 @@ class ImageEncryptionService {
     return out;
   }
 
-  // ===========================
-  // AES + RSA IMAGE ENCRYPTION
-  // ===========================
-  // Encrypts image bytes using AES, then encrypts the AES key with RSA.
-  // Returns a map with 'encryptedImage', 'encryptedAesKey', 'privateKeyPem', 'publicKeyPem'
   static Future<Map<String, dynamic>> encryptImageWithAESRSA(
       Uint8List imageBytes, {
         pc.RSAPublicKey? publicKey,
         pc.RSAPrivateKey? privateKey,
       }) async {
-    // 1. Generate AES key (32 bytes) and IV (16 bytes)
-    final aesKey = _generateRandomBytes(32);
-    final iv = _generateRandomBytes(16);
+    // Generate AES key and IV
+    final aesKey = _randomBytes(32); // AES-256
+    final iv = _randomBytes(16);     // 16 bytes IV
 
-    // 2. AES encrypt image
-    final cipher = pc.CBCBlockCipher(pc.AESEngine())
-      ..init(
-        true,
-        pc.ParametersWithIV(pc.KeyParameter(aesKey), iv),
-      );
-    final padded = _pkcs7Pad(imageBytes, 16);
-    final encryptedImage = Uint8List(padded.length);
-    for (int offset = 0; offset < padded.length; offset += 16) {
-      cipher.processBlock(padded, offset, encryptedImage, offset);
-    }
+    // Encrypt image with AES (PKCS7 padding, CBC)
+    final pc.PaddedBlockCipher aesCipher = pc.PaddedBlockCipherImpl(
+        pc.PKCS7Padding(), pc.CBCBlockCipher(pc.AESEngine()));
+    aesCipher.init(true, pc.PaddedBlockCipherParameters<pc.ParametersWithIV<pc.KeyParameter>, Null>(
+        pc.ParametersWithIV<pc.KeyParameter>(pc.KeyParameter(aesKey), iv),
+        null
+    ));
+    final encryptedImage = aesCipher.process(imageBytes);
 
-    // 3. Generate RSA keypair if not provided
-    pc.AsymmetricKeyPair<pc.RSAPublicKey, pc.RSAPrivateKey>? keyPair;
+    // Generate RSA keypair if not provided
     pc.RSAPublicKey pub;
     pc.RSAPrivateKey priv;
     if (publicKey == null || privateKey == null) {
-      keyPair = await _generateRsaKeyPair();
-      pub = keyPair.publicKey;
-      priv = keyPair.privateKey;
+      final pair = await _generateRsaKeyPair();
+      pub = pair.publicKey;
+      priv = pair.privateKey;
     } else {
       pub = publicKey;
       priv = privateKey;
     }
 
-    // 4. Encrypt AES key+IV using RSA
-    final aesKeyIv = Uint8List.fromList(aesKey + iv);
-    final rsaEngine = pc.OAEPEncoding(pc.RSAEngine())
-      ..init(true, pc.PublicKeyParameter<pc.RSAPublicKey>(pub));
-    final encryptedAesKey = _rsaProcessInBlocks(rsaEngine, aesKeyIv);
+    // Concatenate AES key and IV for RSA encryption
+    final aesKeyIv = Uint8List.fromList([...aesKey, ...iv]);
 
-    // 5. Export keys as PEM
-    final privateKeyPem = CryptoUtils.encodeRSAPrivateKeyToPemPkcs1(priv);
-    final publicKeyPem = CryptoUtils.encodeRSAPublicKeyToPemPkcs1(pub);
+    // RSA encrypt the AES key+IV using OAEP padding
+    final rsaEngine = pc.OAEPEncoding(pc.RSAEngine());
+    rsaEngine.init(true, pc.PublicKeyParameter<pc.RSAPublicKey>(pub));
+
+    // Make sure we don't exceed RSA key size minus padding (typically for 2048-bit RSA, max is ~200 bytes)
+    // AES-256 (32 bytes) + IV (16 bytes) = 48 bytes, which should be well within limits
+    final encryptedAesKey = rsaEngine.process(aesKeyIv);
+
+    // Export RSA keys as PEM
+    final privateKeyPem = CryptoUtils.encodeRSAPrivateKeyToPem(priv);
+    final publicKeyPem = CryptoUtils.encodeRSAPublicKeyToPem(pub);
 
     return {
       'encryptedImage': encryptedImage,
@@ -206,68 +202,115 @@ class ImageEncryptionService {
     };
   }
 
+  /// Decrypts AES+RSA encrypted image.
+  /// Requires: encryptedImage, encryptedAesKey, and privateKeyPem.
   static Future<Uint8List> decryptImageWithAESRSA(
       Uint8List encryptedImage,
       Uint8List encryptedAesKey,
       String privateKeyPem,
       ) async {
-    final privKey = CryptoUtils.rsaPrivateKeyFromPem(privateKeyPem);
-
-    // 1. Decrypt AES key+IV with RSA private key
-    final rsaEngine = pc.OAEPEncoding(pc.RSAEngine())
-      ..init(false, pc.PrivateKeyParameter<pc.RSAPrivateKey>(privKey));
-    final aesKeyIv = _rsaProcessInBlocks(rsaEngine, encryptedAesKey);
-
-    if (aesKeyIv.length < 48) {
-      throw Exception("Decrypted AES key+IV is invalid or corrupted (length: ${aesKeyIv.length})");
+    // Input validation
+    if (encryptedImage.isEmpty) {
+      throw Exception("Encrypted image data is empty");
     }
-    final aesKey = aesKeyIv.sublist(0, 32);
-    final iv = aesKeyIv.sublist(32, 48);
 
-    // 2. AES decrypt image
-    final cipher = pc.CBCBlockCipher(pc.AESEngine())
-      ..init(
-        false,
-        pc.ParametersWithIV(pc.KeyParameter(aesKey), iv),
+    if (encryptedAesKey.isEmpty) {
+      throw Exception("Encrypted AES key data is empty");
+    }
+
+    if (privateKeyPem.trim().isEmpty) {
+      throw Exception("Private key PEM is empty");
+    }
+
+    try {
+      // Parse private key from PEM
+      pc.RSAPrivateKey? privKey;
+      try {
+        // Try using correct PEM format (with BEGIN/END RSA PRIVATE KEY)
+        privKey = CryptoUtils.rsaPrivateKeyFromPem(privateKeyPem);
+      } catch (e) {
+        print("Initial RSA key parsing failed: $e");
+        // Try fixing the PEM format if needed
+        final fixedPem = _ensureProperPemFormat(privateKeyPem);
+        privKey = CryptoUtils.rsaPrivateKeyFromPem(fixedPem);
+      }
+
+      if (privKey == null) {
+        throw Exception("Failed to parse RSA private key");
+      }
+
+      // Initialize RSA decryption
+      final rsaEngine = pc.OAEPEncoding(pc.RSAEngine());
+      rsaEngine.init(false, pc.PrivateKeyParameter<pc.RSAPrivateKey>(privKey));
+
+      // Decrypt the AES key and IV
+      Uint8List aesKeyIv;
+      try {
+        aesKeyIv = rsaEngine.process(encryptedAesKey);
+      } catch (e) {
+        throw Exception("Failed to decrypt AES key: $e");
+      }
+
+      print("Decrypted AES key+IV length: ${aesKeyIv.length}");
+
+      if (aesKeyIv.length < 48) {
+        throw Exception("Decrypted AES key+IV is too short. Expected at least 48 bytes, got ${aesKeyIv.length}");
+      }
+
+      // Extract AES key and IV
+      final aesKey = aesKeyIv.sublist(0, 32);
+      final iv = aesKeyIv.sublist(32, 48);
+
+      // Initialize AES decryption
+      final aesCipher = pc.PaddedBlockCipherImpl(
+          pc.PKCS7Padding(),
+          pc.CBCBlockCipher(pc.AESEngine())
       );
-    final out = Uint8List(encryptedImage.length);
-    for (int offset = 0; offset < encryptedImage.length; offset += 16) {
-      cipher.processBlock(encryptedImage, offset, out, offset);
+
+      aesCipher.init(false,
+          pc.PaddedBlockCipherParameters<pc.ParametersWithIV<pc.KeyParameter>, Null>(
+              pc.ParametersWithIV<pc.KeyParameter>(pc.KeyParameter(aesKey), iv),
+              null
+          )
+      );
+
+      // Decrypt the image
+      Uint8List decryptedImage;
+      try {
+        decryptedImage = aesCipher.process(encryptedImage);
+      } catch (e) {
+        throw Exception("Failed to decrypt image: $e");
+      }
+
+      return decryptedImage;
+    } catch (e) {
+      // Add detailed error information
+      print("Decryption error: $e");
+      throw Exception("Decryption failed: $e");
     }
-    return _pkcs7Unpad(out);
   }
 
-  /// Standalone utility for AES+RSA decryption (for message screens etc)
-  static String decryptAesRsa(
-      Uint8List encryptedMessage,
-      Uint8List encryptedAesKey,
-      pc.RSAPrivateKey privateKey,
-      ) {
-    // 1. Decrypt AES key+iv with RSA
-    final rsaEngine = pc.OAEPEncoding(pc.RSAEngine())
-      ..init(false, pc.PrivateKeyParameter<pc.RSAPrivateKey>(privateKey));
-    Uint8List decryptedKeyIv = _rsaProcessInBlocks(rsaEngine, encryptedAesKey);
-
-    if (decryptedKeyIv.length < 48) {
-      throw Exception("Decrypted AES key+IV is invalid or corrupted (length: ${decryptedKeyIv.length})");
+  // Ensures PEM format is correct with appropriate headers and footers
+  static String _ensureProperPemFormat(String pem) {
+    final content = pem.trim();
+    if (content.startsWith("-----BEGIN") && content.endsWith("KEY-----")) {
+      // Already has the correct format
+      return content;
     }
-    final aesKey = decryptedKeyIv.sublist(0, 32);    // 32 bytes = 256 bit key
-    final iv = decryptedKeyIv.sublist(32, 48);       // 16 bytes = 128 bit IV
 
-    final cipher = pc.CBCBlockCipher(pc.AESEngine());
-    final params = pc.PaddedBlockCipherParameters<pc.KeyParameter, pc.ParametersWithIV<pc.KeyParameter>>(
-      pc.KeyParameter(aesKey),
-      pc.ParametersWithIV<pc.KeyParameter>(pc.KeyParameter(aesKey), iv),
-    );
-    final paddedBlockCipher = pc.PaddedBlockCipherImpl(pc.PKCS7Padding(), cipher)
-      ..init(false, params);
+    // Try to extract base64 part and wrap it with headers
+    String base64Part = content;
 
-    final decrypted = paddedBlockCipher.process(encryptedMessage);
-    return utf8.decode(decrypted);
+    // Remove any non-base64 characters
+    base64Part = base64Part.replaceAll(RegExp(r'[^A-Za-z0-9+/=]'), '');
+
+    return """-----BEGIN RSA PRIVATE KEY-----
+$base64Part
+-----END RSA PRIVATE KEY-----""";
   }
 
   // --- Helpers ---
-  static Uint8List _generateRandomBytes(int length) {
+  static Uint8List _randomBytes(int length) {
     final rnd = Random.secure();
     return Uint8List.fromList(List<int>.generate(length, (_) => rnd.nextInt(256)));
   }
@@ -287,32 +330,5 @@ class ImageEncryptionService {
       pair.publicKey as pc.RSAPublicKey,
       pair.privateKey as pc.RSAPrivateKey,
     );
-  }
-
-  static Uint8List _rsaProcessInBlocks(pc.AsymmetricBlockCipher engine, Uint8List input) {
-    var out = <int>[];
-    final inputLen = input.length;
-    final blockSize = engine.inputBlockSize;
-    for (int offset = 0; offset < inputLen; offset += blockSize) {
-      int end = (offset + blockSize < inputLen) ? offset + blockSize : inputLen;
-      out.addAll(engine.process(input.sublist(offset, end)));
-    }
-    return Uint8List.fromList(out);
-  }
-
-  static Uint8List _pkcs7Pad(Uint8List input, int blockSize) {
-    final padLen = blockSize - (input.length % blockSize);
-    final padded = Uint8List(input.length + padLen);
-    padded.setRange(0, input.length, input);
-    for (int i = 0; i < padLen; i++) {
-      padded[input.length + i] = padLen;
-    }
-    return padded;
-  }
-
-  static Uint8List _pkcs7Unpad(Uint8List input) {
-    int padLen = input.last;
-    if (padLen > 16 || padLen == 0) return input; // fallback
-    return input.sublist(0, input.length - padLen);
   }
 }

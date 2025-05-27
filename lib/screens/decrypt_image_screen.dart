@@ -4,16 +4,16 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import '../services/image_encryption_service.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../utils/file_extension_utils.dart';
 import '../utils/web_download_helper.dart' if (dart.library.html) '../utils/web_download_helper_web.dart';
-
-enum ImageEncryptionMethod { visualCrypto, aesRsa }
+import 'encrypt_image_screen.dart';
+import '../models/image_encryption_method.dart';
 
 class DecryptImageScreen extends StatefulWidget {
-  // Accept initial data for navigation!
   final Uint8List? initialEncryptedImage;
   final Uint8List? initialKeyImage;
   final Uint8List? initialEncryptedAesKey;
@@ -42,6 +42,11 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
   Uint8List? _encryptedAesKeyBytes;
   String? _privateKeyPem;
 
+  // Controllers for text inputs
+  final TextEditingController _encryptedImageTextController = TextEditingController();
+  final TextEditingController _encryptedAesKeyController = TextEditingController();
+  final TextEditingController _privateKeyController = TextEditingController();
+
   ImageEncryptionMethod _method = ImageEncryptionMethod.visualCrypto;
 
   final ImagePicker _picker = ImagePicker();
@@ -54,12 +59,29 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
   @override
   void initState() {
     super.initState();
-    // Autofill if navigated with data
     if (widget.method != null) _method = widget.method!;
     if (widget.initialEncryptedImage != null) _encryptedImageBytes = widget.initialEncryptedImage;
     if (widget.initialKeyImage != null) _keyImageBytes = widget.initialKeyImage;
-    if (widget.initialEncryptedAesKey != null) _encryptedAesKeyBytes = widget.initialEncryptedAesKey;
-    if (widget.initialPrivateKeyPem != null) _privateKeyPem = widget.initialPrivateKeyPem;
+    if (widget.initialEncryptedAesKey != null) {
+      _encryptedAesKeyBytes = widget.initialEncryptedAesKey;
+      _encryptedAesKeyController.text = base64Encode(widget.initialEncryptedAesKey!);
+    }
+    if (widget.initialPrivateKeyPem != null) {
+      _privateKeyPem = widget.initialPrivateKeyPem;
+      _privateKeyController.text = widget.initialPrivateKeyPem!;
+    }
+    // For AES+RSA, prefer initialEncryptedImage as base64 if given
+    if (_method == ImageEncryptionMethod.aesRsa && widget.initialEncryptedImage != null) {
+      _encryptedImageTextController.text = base64Encode(widget.initialEncryptedImage!);
+    }
+  }
+
+  @override
+  void dispose() {
+    _encryptedImageTextController.dispose();
+    _encryptedAesKeyController.dispose();
+    _privateKeyController.dispose();
+    super.dispose();
   }
 
   Future<void> _pickImage(String purpose, Function(Uint8List) onImageSelected) async {
@@ -112,27 +134,57 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
           _showSuccess = true;
         });
       } else if (_method == ImageEncryptionMethod.aesRsa) {
-        if (_encryptedImageBytes == null ||
-            _encryptedAesKeyBytes == null ||
-            _privateKeyPem == null ||
-            _privateKeyPem!.isEmpty) {
+        final encryptedImageText = _encryptedImageTextController.text.trim();
+        final encryptedAesKeyText = _encryptedAesKeyController.text.trim();
+        final privateKeyPemText = _privateKeyController.text.trim();
+
+        if (encryptedImageText.isEmpty || encryptedAesKeyText.isEmpty || privateKeyPemText.isEmpty) {
           setState(() {
-            _errorMessage =
-            'Provide encrypted image, encrypted AES key, and RSA private key PEM.';
+            _errorMessage = 'For decryption, provide Base64 encrypted image, encrypted AES key, and private key PEM.';
             _isDecrypting = false;
           });
           return;
         }
-        final decryptedBytes = await ImageEncryptionService.decryptImageWithAESRSA(
-          _encryptedImageBytes!,
-          _encryptedAesKeyBytes!,
-          _privateKeyPem!,
-        );
-        setState(() {
-          _decryptedImageBytes = decryptedBytes;
-          _isDecrypting = false;
-          _showSuccess = true;
-        });
+
+        Uint8List encryptedImage;
+        Uint8List encryptedAesKey;
+        try {
+          encryptedImage = base64Decode(encryptedImageText);
+        } catch (e) {
+          setState(() {
+            _errorMessage = 'Invalid Base64 for encrypted image: $e';
+            _isDecrypting = false;
+          });
+          return;
+        }
+        try {
+          encryptedAesKey = base64Decode(encryptedAesKeyText);
+        } catch (e) {
+          setState(() {
+            _errorMessage = 'Invalid Base64 for AES key: $e';
+            _isDecrypting = false;
+          });
+          return;
+        }
+
+        try {
+          final decryptedBytes = await ImageEncryptionService.decryptImageWithAESRSA(
+            encryptedImage,
+            encryptedAesKey,
+            privateKeyPemText,
+          );
+          setState(() {
+            _decryptedImageBytes = decryptedBytes;
+            _isDecrypting = false;
+            _showSuccess = true;
+          });
+        } catch (e) {
+          setState(() {
+            _errorMessage = 'AES+RSA decryption failed: $e';
+            _isDecrypting = false;
+          });
+          return;
+        }
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -153,6 +205,14 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
     return ImageEncryptionService.decryptImageWithKey(
       params.plainImageBytes,
       params.keyImageBytes,
+    );
+  }
+
+  void _goToEncrypt(BuildContext context) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => ImageEncryptionScreen(),
+      ),
     );
   }
 
@@ -224,39 +284,14 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 20),
                       child: Column(
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text("Method:", style: TextStyle(fontWeight: FontWeight.bold)),
-                              SizedBox(width: 12),
-                              DropdownButton<ImageEncryptionMethod>(
-                                value: _method,
-                                items: [
-                                  DropdownMenuItem(
-                                    value: ImageEncryptionMethod.visualCrypto,
-                                    child: Text("Visual Cryptography"),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: ImageEncryptionMethod.aesRsa,
-                                    child: Text("AES + RSA"),
-                                  ),
-                                ],
-                                onChanged: (val) {
-                                  setState(() {
-                                    _method = val!;
-                                    _decryptedImageBytes = null;
-                                    _errorMessage = null;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
+                          _buildMethodToggle(),
+                          SizedBox(height: 20),
                           StepperWidget(
                             currentStep: _decryptedImageBytes != null
                                 ? 2
                                 : (_method == ImageEncryptionMethod.visualCrypto
                                 ? (_keyImageBytes != null ? 1 : 0)
-                                : (_encryptedAesKeyBytes != null && _privateKeyPem != null ? 1 : 0)),
+                                : ((_encryptedAesKeyBytes != null && _privateKeyPem != null) ? 1 : 0)),
                             steps: _method == ImageEncryptionMethod.visualCrypto
                                 ? [
                               'Select Encrypted Image',
@@ -264,21 +299,26 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                               'Decrypt Image',
                             ]
                                 : [
-                              'Select Encrypted Image',
-                              'Input Encrypted AES Key & Private Key',
+                              'Paste Encrypted Image (Base64)',
+                              'Enter Decryption Keys',
                               'Decrypt Image',
                             ],
                           ),
-                          SizedBox(height: 18),
-                          _buildImageCard(
-                            title: 'Encrypted Image',
-                            imageBytes: _encryptedImageBytes,
-                            onPick: () => _pickImage('Encrypted', (bytes) {
-                              setState(() => _encryptedImageBytes = bytes);
-                            }),
-                            icon: Icons.lock,
-                            pickLabel: 'Select Encrypted Image',
-                          ),
+                          SizedBox(height: 25),
+                          _buildInstructionsCard(),
+                          SizedBox(height: 20),
+                          if (_method == ImageEncryptionMethod.aesRsa)
+                            _buildAesRsaBase64ImageInput(),
+                          if (_method == ImageEncryptionMethod.visualCrypto)
+                            _buildImageCard(
+                              title: 'Encrypted Image',
+                              imageBytes: _encryptedImageBytes,
+                              onPick: () => _pickImage('Encrypted', (bytes) {
+                                setState(() => _encryptedImageBytes = bytes);
+                              }),
+                              icon: Icons.lock,
+                              pickLabel: 'Select Encrypted Image',
+                            ),
                           if (_method == ImageEncryptionMethod.visualCrypto) ...[
                             SizedBox(height: 16),
                             _buildImageCard(
@@ -293,174 +333,26 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                           ],
                           if (_method == ImageEncryptionMethod.aesRsa) ...[
                             SizedBox(height: 16),
-                            // Encrypted AES Key input field
-                            TextFormField(
-                              initialValue: _encryptedAesKeyBytes != null
-                                  ? base64Encode(_encryptedAesKeyBytes!)
-                                  : '',
-                              minLines: 2,
-                              maxLines: 6,
-                              decoration: InputDecoration(
-                                labelText: "Encrypted AES Key (Base64)",
-                                border: OutlineInputBorder(),
-                              ),
-                              onChanged: (val) {
-                                setState(() {
-                                  try {
-                                    _encryptedAesKeyBytes = base64Decode(val.trim());
-                                  } catch (_) {
-                                    _encryptedAesKeyBytes = null;
-                                  }
-                                });
-                              },
-                            ),
-                            SizedBox(height: 10),
-                            // Private Key PEM input field
-                            TextFormField(
-                              initialValue: _privateKeyPem ?? '',
-                              minLines: 2,
-                              maxLines: 8,
-                              decoration: InputDecoration(
-                                labelText: "RSA Private Key (PEM)",
-                                border: OutlineInputBorder(),
-                              ),
-                              onChanged: (val) =>
-                                  setState(() => _privateKeyPem = val.trim()),
-                            ),
+                            _buildAesRsaInputs(),
                           ],
                           SizedBox(height: 24),
-                          Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              gradient: LinearGradient(
-                                colors: [Color(0xFF43e97b), Color(0xFF38f9d7)],
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                              ),
-                            ),
-                            child: ElevatedButton.icon(
-                              icon: _isDecrypting
-                                  ? SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                                  : Icon(Icons.lock_open, color: Colors.white),
-                              label: Text(
-                                _isDecrypting ? 'Decrypting...' : 'Decrypt Image',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              onPressed: _isDecrypting ? null : _decryptImage,
-                            ),
-                          ),
-                          if (_errorMessage != null)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 14.0),
-                              child: MaterialBanner(
-                                backgroundColor: Colors.red.shade100,
-                                content: Text(
-                                  _errorMessage!,
-                                  style: TextStyle(color: Colors.red[800], fontSize: 15),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => setState(() => _errorMessage = null),
-                                    child: Text('Dismiss'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          if (_decryptedImageBytes != null) ...[
-                            SizedBox(height: 20),
-                            Card(
-                              elevation: 6,
+                          _buildDecryptButton(),
+                          if (_errorMessage != null) _buildErrorBanner(),
+                          if (_decryptedImageBytes != null) _buildDecryptedImageCard(),
+                          SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            icon: Icon(Icons.arrow_back, color: Colors.white),
+                            label: Text("Go to Encrypt", style: TextStyle(color: Colors.white)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).primaryColor,
+                              padding: EdgeInsets.symmetric(vertical: 14, horizontal: 28),
+                              textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
-                              margin: EdgeInsets.symmetric(vertical: 8, horizontal: 0),
-                              color: Colors.white,
-                              shadowColor: Color(0x336a82fb),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [Color(0xFF43e97b), Color(0xFF38f9d7)],
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerRight,
-                                        ),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.lock_open, color: Colors.white),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'Decrypted Image',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    SizedBox(height: 12),
-                                    Image.memory(
-                                      _decryptedImageBytes!,
-                                      fit: BoxFit.contain,
-                                      filterQuality: ui.FilterQuality.medium,
-                                      height: 220,
-                                    ),
-                                    SizedBox(height: 18),
-                                    Container(
-                                      width: double.infinity,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(12),
-                                        gradient: LinearGradient(
-                                          colors: [Color(0xFF43e97b), Color(0xFF38f9d7)],
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerRight,
-                                        ),
-                                      ),
-                                      child: ElevatedButton.icon(
-                                        icon: Icon(Icons.download, color: Colors.white),
-                                        label: Text(
-                                          'Download Decrypted',
-                                          style: TextStyle(color: Colors.white),
-                                        ),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.transparent,
-                                          shadowColor: Colors.transparent,
-                                          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 28),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                        ),
-                                        onPressed: () => _downloadImage(_decryptedImageBytes, "decrypted_image"),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                             ),
-                          ],
+                            onPressed: () => _goToEncrypt(context),
+                          ),
                         ],
                       ),
                     ),
@@ -468,6 +360,437 @@ class _DecryptImageScreenState extends State<DecryptImageScreen> {
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAesRsaBase64ImageInput() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _encryptedImageTextController,
+                minLines: 3,
+                maxLines: 7,
+                decoration: InputDecoration(
+                  labelText: "Encrypted Image (Base64)",
+                  hintText: "Paste Base64 string of encrypted image",
+                  border: OutlineInputBorder(),
+                ),
+                style: TextStyle(fontFamily: 'monospace', fontSize: 12),
+              ),
+            ),
+            SizedBox(width: 8),
+            IconButton(
+              icon: Icon(Icons.paste, color: Colors.blue),
+              tooltip: "Paste from clipboard",
+              onPressed: () async {
+                final data = await Clipboard.getData('text/plain');
+                if (data != null && data.text != null) {
+                  _encryptedImageTextController.text = data.text!;
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMethodToggle() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            Text(
+              "Choose Decryption Method",
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.blueGrey[800]
+              ),
+            ),
+            SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildMethodButton(ImageEncryptionMethod.visualCrypto, "Visual Crypto"),
+                SizedBox(width: 10),
+                _buildMethodButton(ImageEncryptionMethod.aesRsa, "AES + RSA"),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMethodButton(ImageEncryptionMethod method, String label) {
+    final bool isSelected = _method == method;
+    return Expanded(
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isSelected ? Color(0xFF43e97b) : Colors.grey[200],
+          foregroundColor: isSelected ? Colors.white : Colors.black87,
+          padding: EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          elevation: isSelected ? 4 : 0,
+        ),
+        onPressed: () {
+          setState(() {
+            _method = method;
+            _decryptedImageBytes = null;
+            _errorMessage = null;
+          });
+        },
+        child: Text(
+          label,
+          style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInstructionsCard() {
+    return Card(
+      color: Colors.blue[50],
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.blue[700]),
+                SizedBox(width: 8),
+                Text(
+                  "How to Decrypt",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.blue[700],
+                  ),
+                ),
+              ],
+            ),
+            Divider(color: Colors.blue[200]),
+            Text(
+              _method == ImageEncryptionMethod.visualCrypto
+                  ? "1. Upload the encrypted image\n2. Upload the key image\n3. Click 'Decrypt Image'"
+                  : "1. Paste the Base64 encrypted image\n2. Enter the encrypted AES key\n3. Enter your private key\n4. Click 'Decrypt Image'",
+              style: TextStyle(fontSize: 14, color: Colors.blue[800]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAesRsaInputs() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.key, color: Colors.orange[700]),
+                    SizedBox(width: 8),
+                    Text(
+                      "Encrypted AES Key",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _encryptedAesKeyController,
+                        minLines: 2,
+                        maxLines: 5,
+                        decoration: InputDecoration(
+                          hintText: "Paste Base64 encrypted AES key here",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                        ),
+                        style: TextStyle(fontFamily: 'monospace', fontSize: 12),
+                        onChanged: (val) {
+                          setState(() {
+                            try {
+                              _encryptedAesKeyBytes = base64Decode(val.trim());
+                            } catch (_) {
+                              _encryptedAesKeyBytes = null;
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    IconButton(
+                      icon: Icon(Icons.paste, color: Colors.blue),
+                      tooltip: "Paste from clipboard",
+                      onPressed: () async {
+                        final data = await Clipboard.getData('text/plain');
+                        if (data != null && data.text != null) {
+                          _encryptedAesKeyController.text = data.text!;
+                          setState(() {
+                            try {
+                              _encryptedAesKeyBytes = base64Decode(data.text!.trim());
+                            } catch (_) {
+                              _encryptedAesKeyBytes = null;
+                            }
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        SizedBox(height: 16),
+
+        Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.vpn_key, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text(
+                      "Your Private Key (PEM)",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _privateKeyController,
+                        minLines: 3,
+                        maxLines: 6,
+                        decoration: InputDecoration(
+                          hintText: "Paste your RSA private key here",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                        ),
+                        style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            color: Colors.red[900]
+                        ),
+                        onChanged: (val) =>
+                            setState(() => _privateKeyPem = val.trim()),
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    IconButton(
+                      icon: Icon(Icons.paste, color: Colors.blue),
+                      tooltip: "Paste from clipboard",
+                      onPressed: () async {
+                        final data = await Clipboard.getData('text/plain');
+                        if (data != null && data.text != null) {
+                          _privateKeyController.text = data.text!;
+                          setState(() => _privateKeyPem = data.text!.trim());
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Text(
+                  "⚠️ Never share your private key with anyone!",
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDecryptButton() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [Color(0xFF43e97b), Color(0xFF38f9d7)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+      ),
+      child: ElevatedButton.icon(
+        icon: _isDecrypting
+            ? SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+            color: Colors.white,
+            strokeWidth: 2,
+          ),
+        )
+            : Icon(Icons.lock_open, color: Colors.white),
+        label: Text(
+          _isDecrypting ? 'Decrypting...' : 'Decrypt Image',
+          style: TextStyle(color: Colors.white),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: EdgeInsets.symmetric(vertical: 16),
+          textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        onPressed: _isDecrypting ? null : _decryptImage,
+      ),
+    );
+  }
+
+  Widget _buildErrorBanner() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14.0),
+      child: MaterialBanner(
+        backgroundColor: Colors.red.shade100,
+        content: Text(
+          _errorMessage!,
+          style: TextStyle(color: Colors.red[800], fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => setState(() => _errorMessage = null),
+            child: Text('Dismiss'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDecryptedImageCard() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 20.0),
+      child: Card(
+        elevation: 6,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16)),
+        margin: EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+        color: Colors.white,
+        shadowColor: Color(0x336a82fb),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF43e97b), Color(0xFF38f9d7)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                child: Row(
+                  children: [
+                    Icon(Icons.lock_open, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text(
+                      'Decrypted Image',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 12),
+              Image.memory(
+                _decryptedImageBytes!,
+                fit: BoxFit.contain,
+                filterQuality: ui.FilterQuality.medium,
+                height: 220,
+              ),
+              SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF43e97b), Color(0xFF38f9d7)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                ),
+                child: ElevatedButton.icon(
+                  icon: Icon(Icons.download, color: Colors.white),
+                  label: Text(
+                    'Download Decrypted',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    padding: EdgeInsets.symmetric(vertical: 12, horizontal: 28),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () => _downloadImage(_decryptedImageBytes, "decrypted_image"),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -607,6 +930,7 @@ class StepperWidget extends StatelessWidget {
     return Row(
       children: List.generate(steps.length, (index) {
         final isActive = index == currentStep;
+        final isCompleted = index < currentStep;
         return Expanded(
           child: Column(
             children: [
@@ -619,12 +943,18 @@ class StepperWidget extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   )
+                      : isCompleted
+                      ? LinearGradient(
+                    colors: [Colors.blue.shade300, Colors.blue.shade500],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
                       : null,
-                  color: isActive ? null : Colors.grey[200],
+                  color: (isActive || isCompleted) ? null : Colors.grey[200],
                   boxShadow: [
-                    if (isActive)
+                    if (isActive || isCompleted)
                       BoxShadow(
-                        color: Color(0x3343e97b),
+                        color: isActive ? Color(0x3343e97b) : Colors.blue.withOpacity(0.3),
                         blurRadius: 10,
                         spreadRadius: 1,
                         offset: Offset(0, 3),
@@ -634,7 +964,9 @@ class StepperWidget extends StatelessWidget {
                 width: 42,
                 height: 42,
                 child: Center(
-                  child: Text(
+                  child: isCompleted
+                      ? Icon(Icons.check, color: Colors.white)
+                      : Text(
                     '${index + 1}',
                     style: TextStyle(
                       color: isActive ? Colors.white : Colors.black,
@@ -650,8 +982,8 @@ class StepperWidget extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13.5,
-                  color: isActive ? Color(0xFF43e97b) : Colors.grey[600],
-                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                  color: isActive ? Color(0xFF43e97b) : isCompleted ? Colors.blue : Colors.grey[600],
+                  fontWeight: isActive ? FontWeight.bold : isCompleted ? FontWeight.w500 : FontWeight.normal,
                   letterSpacing: 0.3,
                 ),
               ),
