@@ -76,7 +76,6 @@ Other notable tech:
 - Secure session management & auto-logout
 
 ### 🎨 Theming & UX
-- SCC Default theme: blue-violet to pink-red gradient background ([`Color(0xFF6a82fb)`, `Color(0xFFfc5c7d)`])
 - Multiple custom themes: AMOLED, Blue, Sepia, Gold & Purple, Pink & Blue-Gray, System, Light/Dark
 - Theme persistence across sessions
 - Modern, responsive UI
