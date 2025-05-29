@@ -320,35 +320,44 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                               await _loadPendingRequests(_createdRoomId!);
                               showModalBottomSheet(
                                 context: context,
-                                builder: (_) => SizedBox(
-                                  height: 300,
-                                  child: _loadingPending
-                                      ? const Center(child: CircularProgressIndicator())
-                                      : _pendingRequests.isEmpty
-                                      ? const Center(child: Text("No pending requests."))
-                                      : ListView(
-                                    children: _pendingRequests
-                                        .map((user) => ListTile(
-                                      leading: CircleAvatar(
-                                        backgroundImage: user['photoUrl'] != null
-                                            ? NetworkImage(user['photoUrl'])
-                                            : null,
-                                        child: user['photoUrl'] == null
-                                            ? const Icon(Icons.person)
-                                            : null,
-                                      ),
-                                      title: Text(user['name']),
-                                      trailing: IconButton(
-                                        icon: const Icon(Icons.check, color: Colors.green),
-                                        onPressed: () async {
-                                          await _approveUser(_createdRoomId!, user['uid']);
-                                          Navigator.pop(context);
-                                        },
-                                      ),
-                                    ))
-                                        .toList(),
-                                  ),
-                                ),
+                                builder: (_) {
+                                  return StatefulBuilder(
+                                    builder: (context, setModalState) {
+                                      return SizedBox(
+                                        height: 300,
+                                        child: _loadingPending
+                                            ? const Center(child: CircularProgressIndicator())
+                                            : _pendingRequests.isEmpty
+                                                ? const Center(child: Text("No pending requests."))
+                                                : ListView(
+                                                    children: _pendingRequests
+                                                        .map((user) => ListTile(
+                                                              leading: CircleAvatar(
+                                                                backgroundImage: user['photoUrl'] != null
+                                                                    ? NetworkImage(user['photoUrl'])
+                                                                    : null,
+                                                                child: user['photoUrl'] == null
+                                                                    ? const Icon(Icons.person)
+                                                                    : null,
+                                                              ),
+                                                              title: Text(user['name']),
+                                                              trailing: IconButton(
+                                                                icon: const Icon(Icons.check, color: Colors.green),
+                                                                onPressed: () async {
+                                                                  await _approveUser(_createdRoomId!, user['uid']);
+                                                                  // Refresh the pending requests in the modal
+                                                                  setModalState(() {
+                                                                    _pendingRequests.removeWhere((u) => u['uid'] == user['uid']);
+                                                                  });
+                                                                },
+                                                              ),
+                                                            ))
+                                                        .toList(),
+                                                  ),
+                                      );
+                                    },
+                                  );
+                                },
                               );
                             },
                           ),

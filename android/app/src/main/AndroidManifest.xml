@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
     <application
-        android:label="graduation_project"
+        android:label="SCC APP"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

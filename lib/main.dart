@@ -7,6 +7,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'screens/firebase_options.dart';
 import 'theme/theme_provider.dart';
 import 'package:pointycastle/pointycastle.dart';
+import 'screens/intro_screen.dart';
 
 // Screens
 import 'screens/login_screen.dart';
@@ -21,7 +22,7 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     await FirebaseAppCheck.instance.activate(
-      webProvider: ReCaptchaV3Provider('6LdjwEArAAAAAPLI3bvlTfHVGbB65Wo5yG4UwKIK'),
+      webProvider: ReCaptchaV3Provider('6Ldtcy8rAAAAAIX6hXKOI5o_I7V3ATc7KoknTO8v'),
     );
   } else {
     await Firebase.initializeApp(
@@ -216,10 +217,12 @@ class MyApp extends StatelessWidget {
       ),
       darkTheme: betterDarkTheme,
       themeMode: (themeProvider.customThemeName != null)
-          ? ThemeMode.light // Use base light for custom themes, overridden below
+          ? ThemeMode.light
           : themeProvider.themeMode,
       debugShowCheckedModeBanner: false,
-      home: const AuthWrapper(),
+      home: IntroScreen(
+        nextScreen: AuthWrapper(),
+      ),
       builder: (context, child) {
         return themeProvider.customThemeName != null
             ? Theme(
@@ -233,22 +236,14 @@ class MyApp extends StatelessWidget {
 }
 
 class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
-
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
-        }
-        if (snapshot.hasData) {
-          return const HomeScreen();
-        } else {
-          return const LoginScreen();
-        }
-      },
-    );
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return LoginScreen(); // Navigate to login if user is not authenticated
+    } else {
+      return HomeScreen(); // Navigate to home if user is authenticated
+    }
   }
 }

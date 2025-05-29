@@ -112,155 +112,280 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _showReportDebugDialog() async {
+    final TextEditingController _controller = TextEditingController();
+    bool sending = false;
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text("Report a Debug"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("Describe the issue or bug you encountered:"),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _controller,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: "Enter your debug report here...",
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton.icon(
+              icon: sending
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.send),
+              label: Text(sending ? "Sending..." : "Send"),
+              onPressed: sending
+                  ? null
+                  : () async {
+                      setState(() => sending = true);
+                      await Future.delayed(const Duration(seconds: 1));
+                      // TODO: Replace with actual send-to-admin logic (e.g., Firebase, email, etc.)
+                      if (mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Debug report sent to admins!"),
+                            backgroundColor: Colors.teal,
+                          ),
+                        );
+                      }
+                    },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
+        backgroundColor: Colors.teal[700],
+        elevation: 2,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text(
-            'Appearance',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          DropdownButton<String>(
-            value: _selectedTheme,
-            icon: const Icon(Icons.arrow_downward),
-            elevation: 16,
-            style: const TextStyle(color: Colors.teal),
-            underline: Container(
-              height: 2,
-              color: Colors.teal,
-            ),
-            onChanged: _onThemeChanged,
-            items: _availableThemes.map<DropdownMenuItem<String>>((theme) {
-              return DropdownMenuItem<String>(
-                value: theme['name'],
-                child: Text(theme['name']),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 24),
-          const Divider(),
-          const Text(
-            'Security',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          SwitchListTile(
-            value: _twoFactorEnabled,
-            title: const Text('Two-Factor Authentication'),
-            onChanged: (val) async {
-              // Replace with actual logic for enabling/disabling 2FA
-              setState(() => _twoFactorEnabled = val);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('2FA ${val ? "enabled" : "disabled"} (mocked)')),
-              );
-            },
-            secondary: Icon(
-              _twoFactorEnabled ? Icons.verified_user : Icons.security,
-              color: _twoFactorEnabled ? Colors.green : Colors.teal[600],
-            ),
-          ),
-          SwitchListTile(
-            value: _biometrics,
-            title: const Text('Biometric Authentication'),
-            onChanged: (v) {
-              setState(() => _biometrics = v);
-              _saveBiometricsPref(v);
-              // TODO: Add biometrics logic
-            },
-            secondary: const Icon(Icons.fingerprint),
-          ),
-          const SizedBox(height: 24),
-          const Divider(),
-          const Text(
-            'Session',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          ListTile(
-            title: const Text("Logout after inactivity (minutes)"),
-            trailing: DropdownButton<int>(
-              value: _autoLogoutMinutes,
-              items: [5, 10, 15, 30, 60, 120]
-                  .map((m) => DropdownMenuItem(value: m, child: Text(m.toString())))
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) setState(() => _autoLogoutMinutes = v);
-                _saveAutoLogoutMinutes(v ?? 30);
-              },
-            ),
-            leading: const Icon(Icons.timer),
-          ),
-          SwitchListTile(
-            value: _notifications,
-            title: const Text('Enable Notifications'),
-            onChanged: (v) {
-              setState(() => _notifications = v);
-              _saveNotificationPref(v);
-              // TODO: Add notification logic
-            },
-            secondary: const Icon(Icons.notifications_active),
-          ),
-          const SizedBox(height: 24),
-          const Divider(),
-          const Text(
-            'Legal & Info',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text("About"),
-            onTap: _showAboutDialog,
-          ),
-          ListTile(
-            leading: const Icon(Icons.privacy_tip_outlined),
-            title: const Text("Privacy Policy"),
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text("Privacy Policy"),
-                  content: const Text(
-                    "Your data is encrypted and stays on your device. We do not collect or share any user data.",
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text("Close"),
+      body: Container(
+        color: Theme.of(context).brightness == Brightness.light
+            ? Colors.grey[100]
+            : Colors.grey[900],
+        child: ListView(
+          padding: const EdgeInsets.all(18),
+          children: [
+            Card(
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 18),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Appearance',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButton<String>(
+                      value: _selectedTheme,
+                      icon: const Icon(Icons.arrow_downward),
+                      elevation: 16,
+                      style: const TextStyle(color: Colors.teal),
+                      underline: Container(
+                        height: 2,
+                        color: Colors.teal,
+                      ),
+                      onChanged: _onThemeChanged,
+                      items: _availableThemes.map<DropdownMenuItem<String>>((theme) {
+                        return DropdownMenuItem<String>(
+                          value: theme['name'],
+                          child: Text(theme['name']),
+                        );
+                      }).toList(),
                     ),
                   ],
                 ),
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          if (user != null)
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text("Log Out"),
-              onTap: () async {
-                await FirebaseAuth.instance.signOut();
-                if (mounted) {
-                  Navigator.pushReplacementNamed(context, '/');
-                }
-              },
-            ),
-          const SizedBox(height: 16),
-          Center(
-            child: Text(
-              "Version 1.0.0",
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 13,
-                letterSpacing: 1.2,
               ),
             ),
-          ),
-        ],
+            Card(
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 18),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Security',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    SwitchListTile(
+                      value: _twoFactorEnabled,
+                      title: const Text('Two-Factor Authentication'),
+                      onChanged: (val) async {
+                        setState(() => _twoFactorEnabled = val);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('2FA ${val ? "enabled" : "disabled"} (mocked)')),
+                        );
+                      },
+                      secondary: Icon(
+                        _twoFactorEnabled ? Icons.verified_user : Icons.security,
+                        color: _twoFactorEnabled ? Colors.green : Colors.teal[600],
+                      ),
+                    ),
+                    SwitchListTile(
+                      value: _biometrics,
+                      title: const Text('Biometric Authentication'),
+                      onChanged: (v) {
+                        setState(() => _biometrics = v);
+                        _saveBiometricsPref(v);
+                      },
+                      secondary: const Icon(Icons.fingerprint),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Card(
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 18),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Session',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    ListTile(
+                      title: const Text("Logout after inactivity (minutes)"),
+                      trailing: DropdownButton<int>(
+                        value: _autoLogoutMinutes,
+                        items: [5, 10, 15, 30, 60, 120]
+                            .map((m) => DropdownMenuItem(value: m, child: Text(m.toString())))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) setState(() => _autoLogoutMinutes = v);
+                          _saveAutoLogoutMinutes(v ?? 30);
+                        },
+                      ),
+                      leading: const Icon(Icons.timer),
+                    ),
+                    SwitchListTile(
+                      value: _notifications,
+                      title: const Text('Enable Notifications'),
+                      onChanged: (v) {
+                        setState(() => _notifications = v);
+                        _saveNotificationPref(v);
+                      },
+                      secondary: const Icon(Icons.notifications_active),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Card(
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 18),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Legal & Info',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.info_outline),
+                      title: const Text("About"),
+                      onTap: _showAboutDialog,
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.privacy_tip_outlined),
+                      title: const Text("Privacy Policy"),
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text("Privacy Policy"),
+                            content: const Text(
+                              "Your data is encrypted and stays on your device. We do not collect or share any user data.",
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Close"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    if (user != null)
+                      ListTile(
+                        leading: const Icon(Icons.logout),
+                        title: const Text("Log Out"),
+                        onTap: () async {
+                          await FirebaseAuth.instance.signOut();
+                          if (mounted) {
+                            Navigator.pushReplacementNamed(context, '/');
+                          }
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[600],
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 3,
+              ),
+              icon: const Icon(Icons.bug_report),
+              label: const Text(
+                "Report a Debug",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              onPressed: _showReportDebugDialog,
+            ),
+            const SizedBox(height: 24),
+            Center(
+              child: Text(
+                "Version 1.0.0",
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 13,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
