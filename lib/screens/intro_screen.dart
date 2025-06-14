@@ -21,20 +21,20 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
     IntroPage(
       title: "Welcome to the App",
       description: "Discover amazing visual cryptography features",
-      image: "assets/intro1.png",
-      color: Colors.blue.shade100,
+      image: "assets/intro/intro1.png",
+      color: Colors.blue.shade700, // Darker for contrast
     ),
     IntroPage(
       title: "Secure Your Images",
       description: "Apply encryption to protect your visual content",
-      image: "assets/intro2.png",
-      color: Colors.purple.shade100,
+      image: "assets/intro/intro2.png",
+      color: Colors.purple.shade700,
     ),
     IntroPage(
       title: "Decrypt Anywhere",
       description: "Retrieve your original images with ease",
-      image: "assets/intro3.png",
-      color: Colors.green.shade100,
+      image: "assets/intro/intro3.png",
+      color: Colors.green.shade700,
     ),
   ];
 
@@ -94,6 +94,7 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width > 600;
     return Scaffold(
       body: Stack(
         children: [
@@ -102,6 +103,22 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
             duration: const Duration(milliseconds: 500),
             color: _pages[_currentPage].color,
             curve: Curves.easeInOut,
+          ),
+
+          // Gradient overlay for better text contrast
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 500),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color.fromARGB(180, 0, 0, 0), // Top dark
+                  Color.fromARGB(120, 0, 0, 0), // Middle
+                  Color.fromARGB(200, 0, 0, 0), // Bottom darker
+                ],
+              ),
+            ),
           ),
 
           // Page content
@@ -114,7 +131,7 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
                 opacity: _fadeAnimation,
                 child: SlideTransition(
                   position: _slideAnimation,
-                  child: _buildPage(_pages[index]),
+                  child: _buildPage(_pages[index], isWide),
                 ),
               );
             },
@@ -122,18 +139,21 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
 
           // Navigation buttons
           Positioned(
-            bottom: 60,
+            bottom: isWide ? 80 : 60,
             left: 0,
             right: 0,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.symmetric(horizontal: isWide ? 60 : 20),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   // Skip button
                   TextButton(
                     onPressed: _completeIntro,
-                    child: const Text('Skip', style: TextStyle(fontSize: 18)),
+                    child: const Text(
+                      'Skip',
+                      style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
                   ),
 
                   // Progress indicators
@@ -155,7 +175,7 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
                     },
                     child: Text(
                       _currentPage < _pages.length - 1 ? 'Next' : 'Done',
-                      style: const TextStyle(fontSize: 18),
+                      style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -175,16 +195,20 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
       width: _currentPage == index ? 24 : 8,
       decoration: BoxDecoration(
         color: _currentPage == index
-            ? Theme.of(context).primaryColor
-            : Colors.grey.shade400,
+            ? Colors.white
+            : Colors.white.withOpacity(0.4),
         borderRadius: BorderRadius.circular(4),
       ),
     );
   }
 
-  Widget _buildPage(IntroPage page) {
+  Widget _buildPage(IntroPage page, bool isWide) {
+    final textTheme = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.all(40),
+      padding: EdgeInsets.symmetric(
+        horizontal: isWide ? 120 : 40,
+        vertical: isWide ? 60 : 40,
+      ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -201,11 +225,13 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
             },
             child: Image.asset(
               page.image,
-              height: MediaQuery.of(context).size.height * 0.35,
+              height: isWide
+                  ? MediaQuery.of(context).size.height * 0.30
+                  : MediaQuery.of(context).size.height * 0.35,
             ),
           ),
 
-          const SizedBox(height: 40),
+          SizedBox(height: isWide ? 60 : 40),
 
           // Title with staggered animation
           TweenAnimationBuilder(
@@ -223,14 +249,22 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
             },
             child: Text(
               page.title,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              style: textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: Colors.white,
+                shadows: [
+                  Shadow(
+                    blurRadius: 8,
+                    color: Colors.black.withOpacity(0.5),
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               textAlign: TextAlign.center,
             ),
           ),
 
-          const SizedBox(height: 20),
+          SizedBox(height: isWide ? 30 : 20),
 
           // Description with delayed staggered animation
           TweenAnimationBuilder(
@@ -248,7 +282,18 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
             },
             child: Text(
               page.description,
-              style: Theme.of(context).textTheme.bodyLarge,
+              style: textTheme.bodyLarge?.copyWith(
+                color: Colors.white.withOpacity(0.95),
+                fontWeight: FontWeight.w500,
+                fontSize: isWide ? 22 : 18,
+                shadows: [
+                  Shadow(
+                    blurRadius: 6,
+                    color: Colors.black.withOpacity(0.4),
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
               textAlign: TextAlign.center,
             ),
           ),

@@ -58,7 +58,19 @@ class ChatRoomService {
       'allowedUids': FieldValue.arrayUnion([user.uid]),
     });
   }
-
+  static Future<void> deleteRoom(String roomId) async {
+    // Delete all messages in the room
+    final messages = await _firestore
+        .collection('chat_rooms')
+        .doc(roomId)
+        .collection('messages')
+        .get();
+    for (final doc in messages.docs) {
+      await doc.reference.delete();
+    }
+    // Delete the room document itself
+    await _firestore.collection('chat_rooms').doc(roomId).delete();
+  }
   static String _generateJoinToken() {
     final rand = Random.secure();
     return List.generate(24, (_) => rand.nextInt(36).toRadixString(36)).join();

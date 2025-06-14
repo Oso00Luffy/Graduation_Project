@@ -1,0 +1,18 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow users to write their own profile pictures
+    match /profile_pictures/{userId}/{allPaths=**} {
+      allow read; // or 'allow read: if request.auth != null;' if you want only authenticated read
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Optionally, keep your user_uploads rule
+    match /user_uploads/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Allow chat uploads for any authenticated user
+    match /chat_uploads/{roomId}/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

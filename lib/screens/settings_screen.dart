@@ -160,7 +160,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text("Debug report sent to admins!"),
-                            backgroundColor: Colors.teal,
                           ),
                         );
                       }
@@ -178,7 +177,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
-        backgroundColor: Colors.teal[700],
         elevation: 2,
       ),
       body: Container(
@@ -206,10 +204,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       value: _selectedTheme,
                       icon: const Icon(Icons.arrow_downward),
                       elevation: 16,
-                      style: const TextStyle(color: Colors.teal),
                       underline: Container(
                         height: 2,
-                        color: Colors.teal,
                       ),
                       onChanged: _onThemeChanged,
                       items: _availableThemes.map<DropdownMenuItem<String>>((theme) {

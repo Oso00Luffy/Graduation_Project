@@ -48,6 +48,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/intro/
+    - assets/intro/intro1.png
+    - assets/intro/intro2.png
+    - assets/intro/intro3.png
     - assets/images/
     - assets/images/google-logo.png
     - assets/fonts/

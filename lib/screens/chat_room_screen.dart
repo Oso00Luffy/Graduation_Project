@@ -105,6 +105,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           .get();
       if (!doc.exists) throw Exception('Room not found');
       final data = doc.data()!;
+      final user = FirebaseAuth.instance.currentUser!;
       if (data['type'] == 'private') {
         await ChatRoomService.joinPrivateRoom(
             _roomIdController.text.trim(), _joinTokenController.text.trim());
@@ -114,9 +115,25 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 builder: (_) =>
                     ChatScreen(roomId: _roomIdController.text.trim())));
       } else {
+        // Request join
         await ChatRoomService.requestJoinGroupRoom(_roomIdController.text.trim());
         setState(() {
-          _joinError = "Join request sent. Wait for host's approval.";
+          _joinError = "Join request sent. Waiting for host's approval...";
+        });
+        // Listen for approval
+        FirebaseFirestore.instance
+            .collection('chat_rooms')
+            .doc(_roomIdController.text.trim())
+            .snapshots()
+            .listen((roomDoc) {
+          final members = List<String>.from(roomDoc.data()?['members'] ?? []);
+          if (members.contains(user.uid)) {
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        ChatScreen(roomId: _roomIdController.text.trim())));
+          }
         });
       }
     } catch (e) {
@@ -185,6 +202,27 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     });
   }
 
+  Future<void> _deleteRoom(String roomId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Room'),
+        content: const Text('Are you sure you want to delete this room? This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ChatRoomService.deleteRoom(roomId);
+      _loadHostedRooms();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Room deleted')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -241,17 +279,27 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                       ),
                       title: Text(room['roomName']),
                       subtitle: Text('Room ID: ${room['roomId']}'),
-                      trailing: ElevatedButton.icon(
-                        icon: const Icon(Icons.chat),
-                        label: const Text("Enter"),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ChatScreen(roomId: room['roomId']),
-                            ),
-                          );
-                        },
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.chat),
+                            label: const Text("Enter"),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ChatScreen(roomId: room['roomId']),
+                                ),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            tooltip: 'Delete Room',
+                            onPressed: () => _deleteRoom(room['roomId']),
+                          ),
+                        ],
                       ),
                     )),
                 ],
@@ -426,3 +474,4 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     );
   }
 }
+
