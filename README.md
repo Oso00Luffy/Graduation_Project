@@ -4,7 +4,7 @@ A cross-platform Flutter application for secure communication and modern cryptog
 
 > 🧪 Graduation Project by  
 > **Osama Wesam Jaradat** [@Oso00Luffy](https://github.com/Oso00Luffy)  
-> **Moath Amjad Hdairis**  [@moathhdairis]([https://github.com/moathhdairis])
+> **Moath Amjad Hdairis**  [@moathhdairis](https://github.com/moathhdairis)
 > **Supervisor:** Dr. Eman
 
 ---
